@@ -29,7 +29,7 @@ When tasking LLMs with music generation or analysis, standard data formats fail 
 
 ## 🚀 Use Cases
 
-* **Autonomous Agent Workflows:** Build LLM tool-calling architectures that analyze incoming audio/MIDI, rewrite arrangements, and output new files. If you are automating this via local containerized environments like n8n, you can easily mount your working directories (e.g., `-v D:\Temp\DockerThings\mine\my-n8n-setup:/data`) to handle the bidirectional text-to-binary file handoffs seamlessly.
+* **Autonomous Agent Workflows:** Build LLM tool-calling architectures that analyze incoming audio/MIDI, rewrite arrangements, and output new files.
 * **Algorithmic Composition & "Vibe-Coding":** Rapidly prototype complex, multi-track sequences, algorithmic legato, or custom drum maps (e.g., Tabla bols) using simple text generation, allowing you to "prompt" entire orchestral arrangements.
 * **Dataset Generation:** Compress large libraries of MIDI files into highly efficient LMP text datasets for fine-tuning open-source LLMs on specific musical genres or compositional styles.
 
