@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LMP Playground</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4">
+  <div id="loader" class="max-w-md mx-auto mt-16 text-center">
+    <h1 class="text-2xl font-bold mb-4">LMP Playground</h1>
+    <p class="text-slate-400 mb-6">Load the LMP library to get started. Select <code class="bg-slate-800 px-1 rounded">dist/lmp-core.v1.iife.min.js</code></p>
+    <input type="file" id="libInput" accept=".js" class="hidden">
+    <button id="loadBtn" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-medium">Load LMP library</button>
+    <p class="mt-4 text-sm text-slate-500"><a href="#" id="clearCache" class="text-slate-400 hover:text-slate-300">Clear cache</a></p>
+  </div>
+
+  <div id="playground" class="hidden max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">LMP Playground</h1>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-400 mb-2">LMP Source</label>
+        <textarea id="lmp" rows="20" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Paste LMP here..."></textarea>
+        <div id="status" class="mt-2 text-sm min-h-[1.5rem]"></div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-400 mb-2">MIDI Preview</label>
+        <div id="dropzone" class="border-2 border-dashed border-slate-600 rounded-lg p-6 min-h-[300px] bg-slate-800/50 hover:border-slate-500 transition-colors">
+          <p class="text-slate-400 text-center mb-4">Drop .mid file here to decompile to LMP</p>
+          <pre id="preview" class="font-mono text-xs text-slate-300 overflow-auto max-h-[400px] whitespace-pre-wrap break-all"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CACHE_KEY = 'lmp-core-cache';
+
+    function injectScript(content) {
+      const script = document.createElement('script');
+      script.textContent = content;
+      document.body.appendChild(script);
+    }
+
+    function onLibraryReady() {
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('playground').classList.remove('hidden');
+      initPlayground();
+    }
+
+    function initPlayground() {
+      const lmp = document.getElementById('lmp');
+      const preview = document.getElementById('preview');
+      const status = document.getElementById('status');
+      const dropzone = document.getElementById('dropzone');
+
+      const defaultLmp = `@LMP 1.0
+@BPM 120
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+@PROGRAM 0
+@DEFAULT_VEL 80
+@DEFAULT_DUR 1.0
+
+// Block Chords
+1.0 C4,E4,G4
+2.0 D4,F4,A4 95
+3.0 C4,E4,G4 _ 2.0
+
+@TRACK 2 Solo_Flute
+@CHANNEL 2
+@PROGRAM 73
+@DEFAULT_VEL 90
+@RULE LEGATO=TRUE
+
+1.0 C5
+1.5 D5
+2.0 E5
+3.0 C5 _ 2.0
+`;
+      if (!lmp.value.trim()) lmp.value = defaultLmp;
+
+      let debounceTimer;
+      function compileAndPreview() {
+        const text = lmp.value;
+        if (!text.trim()) {
+          preview.textContent = '';
+          status.textContent = '';
+          return;
+        }
+        try {
+          const midi = window.LMP.compile(text);
+          const arr = midi.midi ?? midi;
+          const bytes = Array.from(arr);
+          const hex = bytes.slice(0, 64).map(b => b.toString(16).padStart(2, '0')).join(' ');
+          const more = bytes.length > 64 ? ` ... (+${bytes.length - 64} more)` : '';
+          preview.textContent = `${bytes.length} bytes\n\n${hex}${more}`;
+          status.textContent = '';
+          status.className = 'mt-2 text-sm min-h-[1.5rem]';
+        } catch (err) {
+          status.textContent = err.message || String(err);
+          status.className = 'mt-2 text-sm min-h-[1.5rem] text-red-400';
+        }
+      }
+
+      lmp.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(compileAndPreview, 200);
+      });
+      compileAndPreview();
+
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('border-blue-500', 'bg-slate-800');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('border-blue-500', 'bg-slate-800');
+      });
+      dropzone.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('border-blue-500', 'bg-slate-800');
+        const file = e.dataTransfer.files[0];
+        if (!file || !file.name.toLowerCase().endsWith('.mid')) return;
+        try {
+          const buf = await file.arrayBuffer();
+          const lmpText = window.LMP.decompile(new Uint8Array(buf));
+          lmp.value = lmpText;
+          compileAndPreview();
+        } catch (err) {
+          status.textContent = 'Decompile error: ' + (err.message || String(err));
+          status.className = 'mt-2 text-sm min-h-[1.5rem] text-red-400';
+        }
+      });
+    }
+
+    (function init() {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          injectScript(cached);
+          if (window.LMP && window.LMP.compile && window.LMP.decompile) {
+            onLibraryReady();
+            return;
+          }
+        } catch (e) {
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
+
+      document.getElementById('loadBtn').addEventListener('click', () => document.getElementById('libInput').click());
+      document.getElementById('libInput').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+          const content = await file.text();
+          localStorage.setItem(CACHE_KEY, content);
+          injectScript(content);
+          if (window.LMP && window.LMP.compile && window.LMP.decompile) {
+            onLibraryReady();
+          } else {
+            alert('Invalid library file. Expected window.LMP with compile and decompile.');
+          }
+        } catch (err) {
+          alert('Failed to load: ' + (err.message || String(err)));
+        }
+        e.target.value = '';
+      });
+
+      document.getElementById('clearCache').addEventListener('click', (e) => {
+        e.preventDefault();
+        localStorage.removeItem(CACHE_KEY);
+        location.reload();
+      });
+    })();
+  </script>
+</body>
+</html>

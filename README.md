@@ -35,8 +35,8 @@ When tasking LLMs with music generation or analysis, standard data formats fail 
 
 ## 📂 Repository Structure
 
-* [`specification.md`](./specification.md) - The definitive standard for the syntax, lexical formatting, and parsing rules of LMP v1.
-* `/parsers` *(Coming Soon)* - Official open-source parser implementations (JavaScript/C++) for bidirectional MIDI ⟷ LMP compilation.
+* [`LMP Specifications/LMP v1 - Spec.md`](./LMP%20Specifications/LMP%20v1%20-%20Spec.md) — The definitive standard for the syntax, lexical formatting, and parsing rules of LMP v1.
+* [`LMP Compiler (JS)/`](./LMP%20Compiler%20(JS)/) — JavaScript compiler (LMP text → MIDI). Run `bun install` and `bun run build` from that folder.
 
 ---
 *Built for the future of AI-driven music production.*

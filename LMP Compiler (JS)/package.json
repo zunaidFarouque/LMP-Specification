@@ -1,0 +1,34 @@
+{
+  "name": "lmp-core",
+  "version": "1.0.0",
+  "description": "Lean Musical Protocol (LMP) compiler — text to MIDI",
+  "type": "module",
+  "main": "dist/lmp-core.v1.min.js",
+  "exports": {
+    ".": "./dist/lmp-core.v1.min.js",
+    "./min": "./dist/lmp-core.v1.min.js"
+  },
+  "scripts": {
+    "build": "bun run build:dev && bun run build:min && bun run build:iife",
+    "build:dev": "node build.js",
+    "build:min": "node build.js --minify",
+    "build:iife": "node build.js --iife",
+    "build:web": "bun run build && node scripts/copy-web-lib.js",
+    "test": "bun test",
+    "lmp": "bun run testground/compile.js",
+    "testground": "bun run testground/compile.js testground/song.lmp",
+    "decompile": "bun run testground/decompile.js"
+  },
+  "keywords": ["lmp", "midi", "music", "llm", "compiler"],
+  "license": "MIT",
+  "dependencies": {
+    "midi-file": "^1.2.4",
+    "midi-writer-js": "^2.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
