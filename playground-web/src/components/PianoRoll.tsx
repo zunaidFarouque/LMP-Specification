@@ -1,93 +1,111 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import tippy, { type Instance } from 'tippy.js';
-import 'tippy.js/dist/tippy.css';
-import 'tippy.js/themes/translucent.css';
-import type { DrumMap } from '../utils/drumMap';
-import { getDefaultDrumMap } from '../utils/drumMap';
-import type { ParsedMidi } from '../hooks/useLmpCore';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PianoRollData, Track as TrackData, Note } from '../utils/pianoRollData';
+import { getDrumName } from '../constants/gmDrumMap';
+import {
+  zoomHorizontal,
+  zoomVertical,
+  panHorizontal,
+  resetViewport,
+  type PianoRollViewport,
+} from '../utils/pianoRollViewport';
 
-const NOTE_HEIGHT = 16;
-const NOTE_SPACING = 1;
-const PIXELS_PER_BEAT = 48;
-const TRACK_HEADER_HEIGHT = 24;
-const TIMELINE_HEIGHT = 20;
-const SEPARATOR_HEIGHT = 2;
-const ROW_LABEL_WIDTH = 80;
-const PITCH_PADDING = 2; // semitones above/below note range
-const PAN_BUFFER = 400; // extra space so panned content is not clipped
-
-function ticksToBeat(tick: number, ppqn: number) {
-  return tick / ppqn;
-}
-
-type TrackNote = { tick: number; noteNumber: number; velocity: number; durationTicks: number };
-type Track = { name: string; channel: number; trackIndex: number; notes: TrackNote[] };
-
-function parseMidiToTracks(parsed: ParsedMidi): { tracks: Track[]; ppqn: number; bpm: number } {
-  const ppqn = parsed.header?.ticksPerBeat ?? 480;
-  let bpm = 120;
-  const pendingNoteOns = new Map<number, Map<number, Map<number, { tick: number; velocity: number }>>>();
-  const trackNames = new Map<number, string>();
-  const trackChannels = new Map<number, number>();
-  const trackNotes = new Map<number, TrackNote[]>();
-
-  for (let ti = 0; ti < parsed.tracks.length; ti++) {
-    const track = parsed.tracks[ti];
-    let tick = 0;
-    for (const ev of track) {
-      tick += ev.deltaTime ?? 0;
-      if (ev.type === 'trackName' && ev.text && !trackNames.has(ti)) {
-        trackNames.set(ti, String(ev.text).trim());
-      }
-      if (ev.type === 'setTempo' && ev.microsecondsPerBeat) {
-        const mpb = ev.microsecondsPerBeat;
-        if (mpb > 0) bpm = Math.round(60000000 / mpb);
-      }
-      if (ev.type === 'noteOn') {
-        const ch = ev.channel ?? 0;
-        if (!pendingNoteOns.has(ti)) pendingNoteOns.set(ti, new Map());
-        const byCh = pendingNoteOns.get(ti)!;
-        if (!byCh.has(ch)) byCh.set(ch, new Map());
-        byCh.get(ch)!.set(ev.noteNumber!, { tick, velocity: ev.velocity ?? 64 });
-        if (!trackChannels.has(ti)) trackChannels.set(ti, ch);
-      }
-      if (ev.type === 'noteOff') {
-        const ch = ev.channel ?? 0;
-        const on = pendingNoteOns.get(ti)?.get(ch)?.get(ev.noteNumber!);
-        if (on) {
-          if (!trackNotes.has(ti)) trackNotes.set(ti, []);
-          trackNotes.get(ti)!.push({
-            tick: on.tick,
-            noteNumber: ev.noteNumber!,
-            velocity: on.velocity,
-            durationTicks: tick - on.tick,
-          });
-          pendingNoteOns.get(ti)!.get(ch)!.delete(ev.noteNumber!);
-        }
-      }
-    }
-  }
-
-  const tracks: Track[] = [];
-  let outputIndex = 0;
-  for (let ti = 0; ti < parsed.tracks.length; ti++) {
-    const notes = trackNotes.get(ti) ?? [];
-    if (notes.length === 0) continue;
-    tracks.push({
-      name: trackNames.get(ti) ?? `Track ${ti + 1}`,
-      channel: (trackChannels.get(ti) ?? 0) + 1,
-      trackIndex: outputIndex++,
-      notes: notes.sort((a, b) => a.tick - b.tick),
-    });
-  }
-  return { tracks, ppqn, bpm };
-}
+const LABEL_COLUMN_DEFAULT = 80;
+const LABEL_COLUMN_MIN = 60;
+const LABEL_COLUMN_MAX = 280;
+const RULER_HEIGHT = 24;
+const EXTRA_ROWS_ABOVE_BELOW = 2;
+const BREAK_ROW_HEIGHT = 20;
+const OCTAVE_SEMITONES = 12;
+const TRACK_SEPARATOR_COLOR = 'rgba(251, 146, 60, 0.6)';
+const TRACK_SEPARATOR_WIDTH = 2;
+const DEFAULT_MIDI_MIN = 60;
+const DEFAULT_MIDI_MAX = 72;
+const MIDI_CLAMP_MIN = 0;
+const MIDI_CLAMP_MAX = 127;
+const DRUM_CHANNEL = 9;
+const GRID_COLOR = 'rgba(148, 163, 184, 0.25)';
+const RULER_BG = 'rgb(15, 23, 42)';
 
 const PITCH_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+function midiToPitchName(midi: number): string {
+  return PITCH_NAMES[midi % 12] + (Math.floor(midi / 12) - 1);
+}
 
-function midiToPitchName(n: number): string {
-  const octave = Math.floor(n / 12) - 1;
-  return PITCH_NAMES[n % 12] + octave;
+type PianoRollProps = {
+  data: PianoRollData;
+  sourceMap: Map<string, number> | null;
+  onHighlightLine: (line: number | null) => void;
+};
+
+type PitchOrderItem = number | 'break';
+
+/** Drum (ch 9): only used rows + 1 empty above, 1 empty below. Melodic: segments with break when gap >= 1 octave. Returns order and set of midi that are empty rows (drum only). */
+function getTrackPitchOrder(track: TrackData): { order: PitchOrderItem[]; emptyRows: Set<number> } {
+  const emptyRows = new Set<number>();
+  let minMidi = DEFAULT_MIDI_MAX;
+  let maxMidi = DEFAULT_MIDI_MIN;
+  for (const n of track.notes) {
+    if (n.midi < minMidi) minMidi = n.midi;
+    if (n.midi > maxMidi) maxMidi = n.midi;
+  }
+  const top = Math.min(MIDI_CLAMP_MAX, maxMidi + EXTRA_ROWS_ABOVE_BELOW);
+  const bottom = Math.max(MIDI_CLAMP_MIN, minMidi - EXTRA_ROWS_ABOVE_BELOW);
+
+  if (track.channel === DRUM_CHANNEL) {
+    const used = new Set<number>();
+    for (const n of track.notes) used.add(n.midi);
+    if (used.size === 0) {
+      const order: PitchOrderItem[] = [];
+      for (let m = top; m >= bottom; m--) order.push(m);
+      return { order, emptyRows };
+    }
+    const sorted = [...used].sort((a, b) => b - a);
+    const order: PitchOrderItem[] = [];
+    const mTop = sorted[0] + 1;
+    if (mTop <= MIDI_CLAMP_MAX) {
+      order.push(mTop);
+      emptyRows.add(mTop);
+    }
+    order.push(...sorted);
+    const minUsed = sorted[sorted.length - 1];
+    const mBottom = minUsed - 1;
+    if (mBottom >= MIDI_CLAMP_MIN) {
+      order.push(mBottom);
+      emptyRows.add(mBottom);
+    }
+    return { order, emptyRows };
+  }
+
+  const used = new Set<number>();
+  for (const n of track.notes) used.add(n.midi);
+  if (used.size === 0) {
+    const order: PitchOrderItem[] = [];
+    for (let m = top; m >= bottom; m--) order.push(m);
+    return { order, emptyRows };
+  }
+  const sorted = [...used].sort((a, b) => b - a);
+  const segments: number[][] = [];
+  let seg: number[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    if (seg[seg.length - 1] - sorted[i] >= OCTAVE_SEMITONES) {
+      segments.push(seg);
+      seg = [sorted[i]];
+    } else {
+      seg.push(sorted[i]);
+    }
+  }
+  segments.push(seg);
+
+  const order: PitchOrderItem[] = [];
+  for (let s = 0; s < segments.length; s++) {
+    if (s > 0) order.push('break');
+    const segMin = Math.min(...segments[s]);
+    const segMax = Math.max(...segments[s]);
+    const segTop = Math.min(MIDI_CLAMP_MAX, segMax + EXTRA_ROWS_ABOVE_BELOW);
+    const segBottom = Math.max(MIDI_CLAMP_MIN, segMin - EXTRA_ROWS_ABOVE_BELOW);
+    for (let m = segTop; m >= segBottom; m--) order.push(m);
+  }
+  return { order, emptyRows };
 }
 
 function sourceMapKey(beat: number, trackIndex: number, midi: number): string {
@@ -95,643 +113,621 @@ function sourceMapKey(beat: number, trackIndex: number, midi: number): string {
   return `${b}_${trackIndex}_${midi}`;
 }
 
-function beatToX(beat: number, startBeat: number): number {
-  return (beat - startBeat) * PIXELS_PER_BEAT;
-}
-
-function formatBeatLabel(b: number): string {
-  return b % 1 === 0 ? String(Math.round(b)) : b.toFixed(1);
-}
-
-function createUnstretchedText(
-  parent: SVGGElement,
-  x: number,
-  y: number,
-  content: string,
-  scaleX: number,
-  scaleY: number,
-  attrs: { fill?: string; fontSize?: string }
-): void {
-  const scaleText = Math.min(scaleX, scaleY);
-  const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  wrapper.setAttribute('class', 'text-unstretch');
-  wrapper.setAttribute('data-x', String(x));
-  wrapper.setAttribute('data-y', String(y));
-  wrapper.setAttribute('transform', `translate(${x},${y}) scale(${scaleText / scaleX},${scaleText / scaleY})`);
-  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  text.setAttribute('x', '0');
-  text.setAttribute('y', '0');
-  text.setAttribute('fill', attrs.fill ?? '#64748b');
-  text.setAttribute('font-size', attrs.fontSize ?? '10');
-  text.textContent = content;
-  wrapper.appendChild(text);
-  parent.appendChild(wrapper);
-}
-
-/** For left column: scaleX=1 so text stays fixed width, only scaleY affects size */
-function createLeftColText(
-  parent: SVGGElement,
-  x: number,
-  y: number,
-  content: string,
-  scaleY: number,
-  attrs: { fill?: string; fontSize?: string }
-): void {
-  const wrapper = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  wrapper.setAttribute('class', 'text-unstretch-left');
-  wrapper.setAttribute('data-x', String(x));
-  wrapper.setAttribute('data-y', String(y));
-  wrapper.setAttribute('transform', `translate(${x},${y}) scale(1,${1 / scaleY})`);
-  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  text.setAttribute('x', '0');
-  text.setAttribute('y', '0');
-  text.setAttribute('fill', attrs.fill ?? '#64748b');
-  text.setAttribute('font-size', attrs.fontSize ?? '10');
-  text.textContent = content;
-  wrapper.appendChild(text);
-  parent.appendChild(wrapper);
-}
-
-type TrackParents = { leftCol: SVGGElement; timeline: SVGGElement };
-
-function renderPianoTrack(
-  parents: TrackParents,
-  track: Track,
-  ppqn: number,
-  sourceMap: Map<string, number> | null,
-  x0: number,
-  y0: number,
-  _contentWidth: number,
-  scaleX: number,
-  scaleY: number
-): number {
-  const pitches = [...new Set(track.notes.map((n) => n.noteNumber))].sort((a, b) => b - a);
-  const pitchMin = Math.max(0, Math.min(...pitches) - PITCH_PADDING);
-  const pitchMax = Math.min(127, Math.max(...pitches) + PITCH_PADDING);
-  const pitchSpan = pitchMax - pitchMin + 1;
-  const gridHeight = pitchSpan * (NOTE_HEIGHT + NOTE_SPACING);
-  const minBeat = Math.min(...track.notes.map((n) => ticksToBeat(n.tick, ppqn)));
-  const maxBeat = Math.max(...track.notes.map((n) => ticksToBeat(n.tick + n.durationTicks, ppqn)), 1);
-  const startBeat = minBeat < 1 ? minBeat : 1;
-  const beatSpan = maxBeat - startBeat;
-  const gridWidth = Math.max(beatSpan * PIXELS_PER_BEAT, 200);
-  const contentY = TRACK_HEADER_HEIGHT + TIMELINE_HEIGHT;
-
-  const leftG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  leftG.setAttribute('transform', `translate(${x0}, ${y0})`);
-  createLeftColText(leftG, 0, TRACK_HEADER_HEIGHT - 6, track.name, scaleY, {
-    fill: '#94a3b8',
-    fontSize: '12',
-  });
-  for (let p = pitchMin; p <= pitchMax; p++) {
-    const row = pitchMax - p;
-    const y = contentY + row * (NOTE_HEIGHT + NOTE_SPACING) + (NOTE_HEIGHT + NOTE_SPACING) / 2 + 4;
-    createLeftColText(leftG, 0, y, midiToPitchName(p), scaleY, { fill: '#64748b', fontSize: '10' });
-  }
-  parents.leftCol.appendChild(leftG);
-
-  const timelineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  timelineG.setAttribute('transform', `translate(0, ${y0 + contentY})`);
-
-  const gridStep = beatSpan > 16 ? 4 : beatSpan > 8 ? 2 : beatSpan > 4 ? 1 : 0.5;
-  for (let b = startBeat; b <= maxBeat + 0.01; b += gridStep) {
-    const x = beatToX(b, startBeat);
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', String(x));
-    line.setAttribute('y1', String(-TIMELINE_HEIGHT));
-    line.setAttribute('x2', String(x));
-    line.setAttribute('y2', String(gridHeight));
-    line.setAttribute('stroke', b % 1 === 0 ? '#64748b' : '#334155');
-    line.setAttribute('stroke-width', b % 1 === 0 ? '1' : '0.5');
-    timelineG.appendChild(line);
-  }
-  const labelStep = beatSpan > 16 ? 4 : beatSpan > 8 ? 2 : 1;
-  for (let b = startBeat; b <= maxBeat + 0.01; b += labelStep) {
-    const x = beatToX(b, startBeat) + 2;
-    const y = -TIMELINE_HEIGHT / 2 + 4;
-    createUnstretchedText(timelineG, x, y, formatBeatLabel(b), scaleX, scaleY, {
-      fill: '#64748b',
-      fontSize: '10',
-    });
-  }
-
-  for (let p = pitchMin; p <= pitchMax; p++) {
-    const row = pitchMax - p;
-    const y = row * (NOTE_HEIGHT + NOTE_SPACING);
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', '0');
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(gridWidth));
-    rect.setAttribute('height', String(NOTE_HEIGHT + NOTE_SPACING));
-    rect.setAttribute('fill', row % 2 === 0 ? '#1e293b' : '#0f172a');
-    timelineG.appendChild(rect);
-  }
-
-  for (const n of track.notes) {
-    const beat = ticksToBeat(n.tick, ppqn);
-    const durBeat = n.durationTicks / ppqn;
-    const x = beatToX(beat, startBeat);
-    const w = Math.max(durBeat * PIXELS_PER_BEAT, 4);
-    const row = pitchMax - n.noteNumber;
-    const y = row * (NOTE_HEIGHT + NOTE_SPACING) + NOTE_SPACING / 2;
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(x));
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(w));
-    rect.setAttribute('height', String(NOTE_HEIGHT));
-    rect.setAttribute('fill', '#f59e0b');
-    rect.setAttribute('rx', '2');
-    rect.setAttribute('opacity', String(0.5 + (n.velocity / 255) * 0.5));
-    rect.setAttribute('class', 'cursor-pointer');
-    timelineG.appendChild(rect);
-    const pitchName = midiToPitchName(n.noteNumber);
-    const beatStr = beat.toFixed(3).replace(/\.?0+$/, '');
-    const durStr = durBeat.toFixed(3).replace(/\.?0+$/, '');
-    const lineNum = sourceMap?.get(sourceMapKey(beat, track.trackIndex, n.noteNumber));
-    const linePart = lineNum != null ? `<br>LMP Line ${lineNum}.` : '';
-    const tooltipContent = `${pitchName} • Beat ${beatStr} • Vel ${n.velocity} • ${durStr} beats${linePart}`;
-    const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    fo.setAttribute('x', String(x));
-    fo.setAttribute('y', String(y));
-    fo.setAttribute('width', String(w));
-    fo.setAttribute('height', String(NOTE_HEIGHT));
-    const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
-    div.className = 'piano-roll-note-hit';
-    div.setAttribute('data-tooltip', tooltipContent);
-    if (lineNum != null) div.setAttribute('data-line', String(lineNum));
-    div.style.cssText = 'width:100%;height:100%;cursor:pointer;background:transparent;';
-    fo.appendChild(div);
-    timelineG.appendChild(fo);
-  }
-
-  parents.timeline.appendChild(timelineG);
-  return TRACK_HEADER_HEIGHT + TIMELINE_HEIGHT + gridHeight;
-}
-
-function renderDrumTrack(
-  parents: TrackParents,
-  track: Track,
-  ppqn: number,
-  drumMap: DrumMap,
-  sourceMap: Map<string, number> | null,
-  x0: number,
-  y0: number,
-  _containerWidth: number,
-  scaleX: number,
-  scaleY: number
-): number {
-  const { noteToName, displayOrder } = drumMap;
-  const usedNotes = new Set(track.notes.map((n) => n.noteNumber));
-  let orderedNotes = displayOrder.filter((n) => usedNotes.has(n));
-  for (const n of usedNotes) {
-    if (!orderedNotes.includes(n)) orderedNotes.push(n);
-  }
-  const rowCount = Math.max(orderedNotes.length, 1);
-  const rowHeight = NOTE_HEIGHT + NOTE_SPACING;
-  const gridHeight = rowCount * rowHeight;
-  const minBeat = Math.min(...track.notes.map((n) => ticksToBeat(n.tick, ppqn)));
-  const maxBeat = Math.max(...track.notes.map((n) => ticksToBeat(n.tick + n.durationTicks, ppqn)), 1);
-  const startBeat = minBeat < 1 ? minBeat : 1;
-  const beatSpan = maxBeat - startBeat;
-  const gridWidth = Math.max(beatSpan * PIXELS_PER_BEAT, 200);
-  const noteToRow = new Map(orderedNotes.map((n, i) => [n, i]));
-  const contentY = TRACK_HEADER_HEIGHT + TIMELINE_HEIGHT;
-
-  const leftG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  leftG.setAttribute('transform', `translate(${x0}, ${y0})`);
-  createLeftColText(leftG, 0, TRACK_HEADER_HEIGHT - 6, track.name, scaleY, {
-    fill: '#94a3b8',
-    fontSize: '12',
-  });
-  for (let i = 0; i < rowCount; i++) {
-    const y = contentY + i * rowHeight + rowHeight / 2 + 4;
-    const noteNum = orderedNotes[i];
-    const name = noteToName.get(noteNum) ?? `Note ${noteNum}`;
-    createLeftColText(leftG, 0, y, name, scaleY, { fill: '#94a3b8', fontSize: '11' });
-  }
-  parents.leftCol.appendChild(leftG);
-
-  const timelineG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-  timelineG.setAttribute('transform', `translate(0, ${y0 + contentY})`);
-
-  const gridStep = beatSpan > 16 ? 4 : beatSpan > 8 ? 2 : beatSpan > 4 ? 1 : 0.5;
-  for (let b = startBeat; b <= maxBeat + 0.01; b += gridStep) {
-    const x = beatToX(b, startBeat);
-    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', String(x));
-    line.setAttribute('y1', String(-TIMELINE_HEIGHT));
-    line.setAttribute('x2', String(x));
-    line.setAttribute('y2', String(gridHeight));
-    line.setAttribute('stroke', b % 1 === 0 ? '#64748b' : '#334155');
-    line.setAttribute('stroke-width', b % 1 === 0 ? '1' : '0.5');
-    timelineG.appendChild(line);
-  }
-  const labelStep = beatSpan > 16 ? 4 : beatSpan > 8 ? 2 : 1;
-  for (let b = startBeat; b <= maxBeat + 0.01; b += labelStep) {
-    const x = beatToX(b, startBeat) + 2;
-    const y = -TIMELINE_HEIGHT / 2 + 4;
-    createUnstretchedText(timelineG, x, y, formatBeatLabel(b), scaleX, scaleY, {
-      fill: '#64748b',
-      fontSize: '10',
-    });
-  }
-
-  for (let i = 0; i < rowCount; i++) {
-    const y = i * rowHeight;
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', '0');
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(gridWidth));
-    rect.setAttribute('height', String(rowHeight));
-    rect.setAttribute('fill', i % 2 === 0 ? '#1e293b' : '#0f172a');
-    timelineG.appendChild(rect);
-  }
-
-  for (const n of track.notes) {
-    const row = noteToRow.get(n.noteNumber);
-    if (row === undefined) continue;
-    const beat = ticksToBeat(n.tick, ppqn);
-    const durBeat = n.durationTicks / ppqn;
-    const x = beatToX(beat, startBeat);
-    const w = Math.max(durBeat * PIXELS_PER_BEAT, 6);
-    const y = row * rowHeight + NOTE_SPACING / 2;
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(x));
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(w));
-    rect.setAttribute('height', String(NOTE_HEIGHT));
-    rect.setAttribute('fill', '#f59e0b');
-    rect.setAttribute('rx', '2');
-    rect.setAttribute('opacity', String(0.5 + (n.velocity / 255) * 0.5));
-    rect.setAttribute('class', 'cursor-pointer');
-    timelineG.appendChild(rect);
-    const drumName = noteToName.get(n.noteNumber) ?? `Note ${n.noteNumber}`;
-    const beatStr = beat.toFixed(3).replace(/\.?0+$/, '');
-    const durStr = durBeat.toFixed(3).replace(/\.?0+$/, '');
-    const lineNum = sourceMap?.get(sourceMapKey(beat, track.trackIndex, n.noteNumber));
-    const linePart = lineNum != null ? `<br>LMP Line ${lineNum}.` : '';
-    const tooltipContent = `${drumName} • Beat ${beatStr} • Vel ${n.velocity} • ${durStr} beats${linePart}`;
-    const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
-    fo.setAttribute('x', String(x));
-    fo.setAttribute('y', String(y));
-    fo.setAttribute('width', String(w));
-    fo.setAttribute('height', String(NOTE_HEIGHT));
-    const div = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
-    div.className = 'piano-roll-note-hit';
-    div.setAttribute('data-tooltip', tooltipContent);
-    if (lineNum != null) div.setAttribute('data-line', String(lineNum));
-    div.style.cssText = 'width:100%;height:100%;cursor:pointer;background:transparent;';
-    fo.appendChild(div);
-    timelineG.appendChild(fo);
-  }
-
-  parents.timeline.appendChild(timelineG);
-  return TRACK_HEADER_HEIGHT + TIMELINE_HEIGHT + gridHeight;
-}
-
-type Props = {
-  midi: Uint8Array | null;
-  sourceMap: Map<string, number> | null;
-  drumMap: DrumMap | null;
-  parseMidi: ((buf: Uint8Array) => ParsedMidi | null) | null;
-  onNoteHover?: (sourceLine: number | null) => void;
-};
-
-const MIN_SCALE = 0.25;
-const MAX_SCALE = 4;
-const ZOOM_FACTOR = 1.1;
-
-export function PianoRoll({ midi, sourceMap, drumMap, parseMidi, onNoteHover }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const svgContainerRef = useRef<HTMLDivElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
-
-  const [scaleX, setScaleX] = useState(1);
-  const [scaleY, setScaleY] = useState(1);
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
-  const panStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+export function PianoRoll({ data, sourceMap, onHighlightLine }: PianoRollProps) {
+  const [viewport, setViewport] = useState<PianoRollViewport>(() =>
+    resetViewport(data.startBeat)
+  );
+  const scrollRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
-  const zoomGroupRef = useRef<{
-    leftCol: SVGGElement;
-    timeline: SVGGElement;
-    clipRect: SVGRectElement;
+  const panStart = useRef({ x: 0, y: 0, scrollBeat: 0, scrollTrackY: 0 });
+  const labelResizeRef = useRef({ active: false, startX: 0, startWidth: 0 });
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [labelColumnWidth, setLabelColumnWidth] = useState(LABEL_COLUMN_DEFAULT);
+  const [hoveredNote, setHoveredNote] = useState<{
+    trackIndex: number;
+    note: Note;
+    x: number;
+    y: number;
   } | null>(null);
+
+  const { tracks, startBeat } = data;
+  const endBeat = useMemo(() => {
+    let max = startBeat;
+    for (const t of tracks) {
+      for (const n of t.notes) {
+        const end = n.startBeat + n.durationBeat;
+        if (end > max) max = end;
+      }
+    }
+    return max + 4;
+  }, [tracks, startBeat]);
+
+  const trackPitchOrders = useMemo(
+    () => tracks.map((t) => getTrackPitchOrder(t)),
+    [tracks]
+  );
+
+  const trackRowHeights = useMemo(
+    () =>
+      tracks.map((_, ti) =>
+        trackPitchOrders[ti].order.map((o) =>
+          o === 'break' ? BREAK_ROW_HEIGHT : viewport.pitchRowHeight
+        )
+      ),
+    [tracks, trackPitchOrders, viewport.pitchRowHeight]
+  );
+
+  const trackHeights = useMemo(
+    () => trackRowHeights.map((rowHeights) => rowHeights.reduce((a, b) => a + b, 0)),
+    [trackRowHeights]
+  );
+
+  const trackRowYOffsets = useMemo(
+    () =>
+      trackRowHeights.map((rowHeights) => {
+        const out: number[] = [0];
+        for (let i = 0; i < rowHeights.length; i++) out.push(out[i] + rowHeights[i]);
+        return out;
+      }),
+    [trackRowHeights]
+  );
+
+  const trackYOffsets = useMemo(() => {
+    const out: number[] = [];
+    let y = 0;
+    for (const h of trackHeights) {
+      out.push(y);
+      y += h;
+    }
+    return out;
+  }, [trackHeights]);
+
+  const contentHeight = useMemo(
+    () => trackHeights.reduce((a, b) => a + b, 0),
+    [trackHeights]
+  );
+
+  useEffect(() => {
+    setViewport(resetViewport(data.startBeat));
+  }, [data.startBeat]);
+
+  const contentWidth = (endBeat - startBeat) * viewport.pixelsPerBeat;
 
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
-      if (!viewportRef.current) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = viewportRef.current.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const delta = e.deltaY > 0 ? -1 : 1;
-      const factor = delta > 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
-      if (e.ctrlKey || e.metaKey) {
-        const newScaleY = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scaleY * factor));
-        setScaleY(newScaleY);
-        setPanY((p) => mouseY - (mouseY - p) * (newScaleY / scaleY));
-      } else {
-        const newScaleX = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scaleX * factor));
-        setScaleX(newScaleX);
-        setPanX((p) => mouseX - (mouseX - p) * (newScaleX / scaleX));
-      }
+      if (!e.ctrlKey) return;
+      const el = scrollRef.current;
+      if (!el) return;
+      const delta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      const rect = el.getBoundingClientRect();
+      const centerX = e.clientX - rect.left + el.scrollLeft;
+      const centerBeat = startBeat + (centerX - labelColumnWidth) / viewport.pixelsPerBeat;
+      setViewport((v) => zoomHorizontal(v, -delta, centerBeat));
     },
-    [scaleX, scaleY]
+    [startBeat, viewport.pixelsPerBeat, labelColumnWidth]
   );
 
-  const handlePanStart = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      isPanning.current = true;
+      panStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        scrollBeat: viewport.scrollBeat,
+        scrollTrackY: viewport.scrollTrackY,
+      };
+    },
+    [viewport.scrollBeat, viewport.scrollTrackY]
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (labelResizeRef.current.active) return;
+      if (isPanning.current) {
+        const totalDx = e.clientX - panStart.current.x;
+        const totalDy = e.clientY - panStart.current.y;
+        setViewport((v) => ({
+          ...v,
+          scrollBeat: Math.max(0, panStart.current.scrollBeat - totalDx / v.pixelsPerBeat),
+          scrollTrackY: Math.max(0, panStart.current.scrollTrackY - totalDy),
+        }));
+      } else {
+        const el = scrollRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const contentX = e.clientX - rect.left + el.scrollLeft;
+        const contentY = e.clientY - rect.top + el.scrollTop;
+        const timelineX = contentX - labelColumnWidth;
+        const canvasY = contentY - RULER_HEIGHT;
+        if (timelineX < 0 || canvasY < 0) {
+          setHoveredNote(null);
+          onHighlightLine(null);
+          return;
+        }
+        const beat = startBeat + timelineX / viewport.pixelsPerBeat;
+        let trackIndex = -1;
+        for (let i = 0; i < trackYOffsets.length; i++) {
+          if (canvasY >= trackYOffsets[i] && canvasY < trackYOffsets[i] + trackHeights[i]) {
+            trackIndex = i;
+            break;
+          }
+        }
+        if (trackIndex < 0 || trackIndex >= tracks.length) {
+          setHoveredNote(null);
+          onHighlightLine(null);
+          return;
+        }
+        const track = tracks[trackIndex];
+        const order = trackPitchOrders[trackIndex].order;
+        const rowYOffsets = trackRowYOffsets[trackIndex];
+        const trackLocalY = canvasY - trackYOffsets[trackIndex];
+        if (order.length === 0) {
+          setHoveredNote(null);
+          onHighlightLine(null);
+          return;
+        }
+        let row = -1;
+        for (let r = 0; r < rowYOffsets.length - 1; r++) {
+          if (trackLocalY >= rowYOffsets[r] && trackLocalY < rowYOffsets[r + 1]) {
+            row = r;
+            break;
+          }
+        }
+        if (row < 0 || row >= order.length) {
+          setHoveredNote(null);
+          onHighlightLine(null);
+          return;
+        }
+        const midi = order[row];
+        if (midi === 'break') {
+          setHoveredNote(null);
+          onHighlightLine(null);
+          return;
+        }
+        const note = track.notes.find(
+          (n) =>
+            n.midi === midi &&
+            n.startBeat <= beat &&
+            n.startBeat + n.durationBeat >= beat
+        );
+        if (note) {
+          setHoveredNote({ trackIndex, note, x: e.clientX, y: e.clientY });
+          const key = sourceMapKey(note.startBeat, trackIndex, note.midi);
+          const line = sourceMap?.get(key);
+          onHighlightLine(line ?? null);
+        } else {
+          setHoveredNote(null);
+          onHighlightLine(null);
+        }
+      }
+    },
+    [
+      startBeat,
+      viewport.pixelsPerBeat,
+      tracks,
+      trackPitchOrders,
+      trackYOffsets,
+      trackRowYOffsets,
+      trackHeights,
+      sourceMap,
+      onHighlightLine,
+      labelColumnWidth,
+    ]
+  );
+
+  const handleLabelResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    isPanning.current = true;
-    panStart.current = { x: e.clientX, y: e.clientY, panX, panY };
-
-    const handlePanMove = (ev: MouseEvent) => {
-      setPanX(panStart.current.panX + ev.clientX - panStart.current.x);
-      setPanY(panStart.current.panY + ev.clientY - panStart.current.y);
+    e.stopPropagation();
+    labelResizeRef.current = { active: true, startX: e.clientX, startWidth: labelColumnWidth };
+    const onMove = (moveEvent: MouseEvent) => {
+      const { startX, startWidth } = labelResizeRef.current;
+      const dx = moveEvent.clientX - startX;
+      setLabelColumnWidth(Math.max(LABEL_COLUMN_MIN, Math.min(LABEL_COLUMN_MAX, startWidth + dx)));
     };
-    const handlePanEnd = () => {
-      isPanning.current = false;
-      window.removeEventListener('mousemove', handlePanMove);
-      window.removeEventListener('mouseup', handlePanEnd);
+    const onUp = () => {
+      labelResizeRef.current.active = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
     };
-    window.addEventListener('mousemove', handlePanMove);
-    window.addEventListener('mouseup', handlePanEnd);
-  }, [panX, panY]);
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [labelColumnWidth]);
 
-  const resetZoomPan = useCallback(() => {
-    setScaleX(1);
-    setScaleY(1);
-    setPanX(0);
-    setPanY(0);
+  const handleMouseUp = useCallback(() => {
+    isPanning.current = false;
   }, []);
 
-  const hasContent = Boolean(midi && midi.length > 0 && parseMidi);
+  const handleMouseLeave = useCallback(() => {
+    setHoveredNote(null);
+    onHighlightLine(null);
+  }, [onHighlightLine]);
 
   useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport || !hasContent) return;
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = viewport.scrollBeat * viewport.pixelsPerBeat;
+      scrollRef.current.scrollTop = viewport.scrollTrackY;
+    }
+  }, [viewport.scrollBeat, viewport.pixelsPerBeat, viewport.scrollTrackY]);
+
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setViewport((v) => ({
+      ...v,
+      scrollBeat: el.scrollLeft / v.pixelsPerBeat,
+      scrollTrackY: el.scrollTop,
+    }));
+  }, []);
+
+  const handleZoomH = useCallback((delta: number) => {
+    const centerBeat = startBeat + (endBeat - startBeat) / 2;
+    setViewport((v) => zoomHorizontal(v, delta, centerBeat));
+  }, [startBeat, endBeat]);
+
+  const handleZoomV = useCallback((delta: number) => {
+    setViewport((v) => zoomVertical(v, delta));
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setViewport(resetViewport(data.startBeat));
+  }, [data.startBeat]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      if (e.ctrlKey) return;
+      if (e.shiftKey) {
+        el.scrollLeft += e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      } else {
+        el.scrollTop += e.deltaY;
+      }
     };
-    viewport.addEventListener('wheel', onWheel, { passive: false });
-    return () => viewport.removeEventListener('wheel', onWheel);
-  }, [hasContent]);
-
-  const contentSizeRef = useRef({ width: 0, height: 0 });
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   useEffect(() => {
-    const container = svgContainerRef.current;
-    if (!container) return;
-    const oldSvg = container.querySelector('svg');
-    if (oldSvg) oldSvg.remove();
-    zoomGroupRef.current = null;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = contentWidth;
+    const h = contentHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = 'rgb(15, 23, 42)';
+    ctx.fillRect(0, 0, w, h);
 
-    if (!midi || midi.length === 0 || !parseMidi) {
-      return;
+    for (let beat = Math.floor(startBeat); beat <= Math.ceil(endBeat); beat++) {
+      const x = (beat - startBeat) * viewport.pixelsPerBeat;
+      ctx.strokeStyle = GRID_COLOR;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, contentHeight);
+      ctx.stroke();
     }
 
-    try {
-      const parsed = parseMidi(midi) as ParsedMidi | null;
-      if (!parsed?.tracks) {
-        return;
-      }
-      const { tracks, ppqn } = parseMidiToTracks(parsed);
-      if (tracks.length === 0) {
-        return;
-      }
+    for (let ti = 0; ti < tracks.length; ti++) {
+      const track = tracks[ti];
+      const order = trackPitchOrders[ti].order;
+      const trackY = trackYOffsets[ti];
+      const rowYOffsets = trackRowYOffsets[ti];
+      const rowHeights = trackRowHeights[ti];
+      const totalRows = order.length;
 
-      const effectiveDrumMap = drumMap ?? getDefaultDrumMap({ short: true });
-      let contentWidth = ROW_LABEL_WIDTH + 200;
-      for (const t of tracks) {
-        const minB = Math.min(...t.notes.map((n) => ticksToBeat(n.tick, ppqn)));
-        const maxB = Math.max(...t.notes.map((n) => ticksToBeat(n.tick + n.durationTicks, ppqn)), 1);
-        const startB = minB < 1 ? minB : 1;
-        const span = maxB - startB;
-        const w = ROW_LABEL_WIDTH + Math.max(span * PIXELS_PER_BEAT, 200);
-        if (w > contentWidth) contentWidth = w;
+      if (ti > 0) {
+        ctx.strokeStyle = TRACK_SEPARATOR_COLOR;
+        ctx.lineWidth = TRACK_SEPARATOR_WIDTH;
+        ctx.beginPath();
+        ctx.moveTo(0, trackY);
+        ctx.lineTo(w, trackY);
+        ctx.stroke();
+        ctx.lineWidth = 1;
       }
 
-      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
-
-      const leftColGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      leftColGroup.setAttribute('class', 'piano-roll-left-col');
-      leftColGroup.setAttribute(
-        'transform',
-        `translate(${PAN_BUFFER}, ${PAN_BUFFER + panY}) scale(1, ${scaleY})`
-      );
-
-      const clipId = 'piano-roll-timeline-clip';
-      const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-      clipPath.setAttribute('id', clipId);
-      const clipRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      const clipX = Math.max(0, -panX / scaleX);
-      clipRect.setAttribute('x', String(clipX));
-      clipRect.setAttribute('y', '-5000');
-      clipRect.setAttribute('width', '100000');
-      clipRect.setAttribute('height', '20000');
-      clipPath.appendChild(clipRect);
-      svg.appendChild(clipPath);
-
-      const timelineGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-      timelineGroup.setAttribute('class', 'piano-roll-timeline');
-      timelineGroup.setAttribute('clip-path', `url(#${clipId})`);
-      timelineGroup.setAttribute(
-        'transform',
-        `translate(${PAN_BUFFER + ROW_LABEL_WIDTH + panX}, ${PAN_BUFFER + panY}) scale(${scaleX}, ${scaleY})`
-      );
-      zoomGroupRef.current = { leftCol: leftColGroup, timeline: timelineGroup, clipRect };
-
-      let y = 0;
-      const parents: TrackParents = { leftCol: leftColGroup, timeline: timelineGroup };
-
-      for (let i = 0; i < tracks.length; i++) {
-        if (i > 0) {
-          const sep = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          sep.setAttribute('x', '0');
-          sep.setAttribute('y', String(y));
-          sep.setAttribute('width', String(contentWidth));
-          sep.setAttribute('height', String(SEPARATOR_HEIGHT));
-          sep.setAttribute('fill', '#475569');
-          leftColGroup.appendChild(sep);
-          y += SEPARATOR_HEIGHT;
+      for (let i = 0; i < totalRows; i++) {
+        if (order[i] === 'break') {
+          ctx.fillStyle = 'rgba(148, 163, 184, 0.05)';
+          ctx.fillRect(0, trackY + rowYOffsets[i], w, rowHeights[i]);
         }
-
-        const track = tracks[i];
-        const isDrum = track.channel === 10;
-        const h = isDrum && effectiveDrumMap
-          ? renderDrumTrack(parents, track, ppqn, effectiveDrumMap, sourceMap, 0, y, contentWidth, scaleX, scaleY)
-          : renderPianoTrack(parents, track, ppqn, sourceMap, 0, y, contentWidth, scaleX, scaleY);
-        y += h;
       }
 
-      contentSizeRef.current = { width: contentWidth, height: y };
-
-      const borderLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      borderLine.setAttribute('x1', String(ROW_LABEL_WIDTH));
-      borderLine.setAttribute('y1', '0');
-      borderLine.setAttribute('x2', String(ROW_LABEL_WIDTH));
-      borderLine.setAttribute('y2', String(y));
-      borderLine.setAttribute('stroke', '#475569');
-      borderLine.setAttribute('stroke-width', '1');
-      leftColGroup.insertBefore(borderLine, leftColGroup.firstChild);
-
-      svg.appendChild(leftColGroup);
-      svg.appendChild(timelineGroup);
-
-      const timelineWidth = contentWidth - ROW_LABEL_WIDTH;
-      const svgWidth = 2 * PAN_BUFFER + ROW_LABEL_WIDTH + timelineWidth * scaleX;
-      const svgHeight = 2 * PAN_BUFFER + y * scaleY;
-      svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
-      svg.setAttribute('width', '100%');
-      svg.setAttribute('height', '100%');
-      svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
-      container.appendChild(svg);
-
-      const viewport = viewportRef.current;
-      if (viewport) {
-        viewport.scrollLeft = PAN_BUFFER;
-        viewport.scrollTop = PAN_BUFFER;
+      for (let i = 0; i <= totalRows; i++) {
+        const y = trackY + rowYOffsets[i];
+        ctx.strokeStyle = GRID_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
       }
 
-      const instances: Instance[] = [];
-      const hoverHandlers: Array<{ el: Element; onEnter: () => void; onLeave: () => void }> = [];
-      container.querySelectorAll('.piano-roll-note-hit').forEach((el) => {
-        const content = (el as HTMLElement).dataset.tooltip ?? '';
-        const instance = tippy(el, {
-          content,
-          allowHTML: true,
-          theme: 'translucent',
-          placement: 'top',
-          delay: [200, 0],
-          duration: [150, 100],
-        });
-        instances.push(instance);
-        if (onNoteHover) {
-          const lineStr = (el as HTMLElement).dataset.line;
-          const onEnter = () => {
-            if (lineStr) onNoteHover(parseInt(lineStr, 10));
-          };
-          const onLeave = () => onNoteHover(null);
-          el.addEventListener('mouseenter', onEnter);
-          el.addEventListener('mouseleave', onLeave);
-          hoverHandlers.push({ el, onEnter, onLeave });
+      for (const n of track.notes) {
+        const noteRow = order.indexOf(n.midi);
+        if (noteRow < 0) continue;
+        const x = (n.startBeat - startBeat) * viewport.pixelsPerBeat;
+        const nw = Math.max(2, n.durationBeat * viewport.pixelsPerBeat);
+        const ny = trackY + rowYOffsets[noteRow];
+        const nh = Math.max(2, rowHeights[noteRow] - 1);
+        const v = Math.max(0, Math.min(1, n.velocity));
+        const r = Math.round(180 + (251 - 180) * v);
+        const g = Math.round(90 + (146 - 90) * v);
+        const b = Math.round(40 + (60 - 40) * v);
+        const radius = Math.min(3, (nh - 1) / 2, (nw - 1) / 2);
+        const overlaps = track.notes.some(
+          (other) =>
+            other !== n &&
+            other.midi === n.midi &&
+            n.startBeat < other.startBeat + other.durationBeat &&
+            other.startBeat < n.startBeat + n.durationBeat
+        );
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.beginPath();
+        ctx.roundRect(x, ny + 1, nw, nh, radius);
+        ctx.fill();
+        if (overlaps) {
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
         }
-      });
-
-      return () => {
-        instances.forEach((i) => i.destroy());
-        hoverHandlers.forEach(({ el, onEnter, onLeave }) => {
-          el.removeEventListener('mouseenter', onEnter);
-          el.removeEventListener('mouseleave', onLeave);
-        });
-      };
-    } catch (err) {
-      console.error('Piano roll error:', err);
+      }
     }
-  }, [midi, sourceMap, drumMap, parseMidi, onNoteHover]);
+  }, [
+    contentWidth,
+    contentHeight,
+    tracks,
+    trackPitchOrders,
+    trackYOffsets,
+    trackRowYOffsets,
+    trackRowHeights,
+    viewport.pixelsPerBeat,
+    startBeat,
+    endBeat,
+  ]);
 
-  useEffect(() => {
-    const groups = zoomGroupRef.current;
-    const container = svgContainerRef.current;
-    if (!groups || !container) return;
-    const svg = container.querySelector('svg');
-    if (!svg) return;
+  const tooltipLine = useMemo(() => {
+    if (!hoveredNote || !sourceMap) return null;
+    const key = sourceMapKey(hoveredNote.note.startBeat, hoveredNote.trackIndex, hoveredNote.note.midi);
+    return sourceMap.get(key) ?? null;
+  }, [hoveredNote, sourceMap]);
 
-    groups.leftCol.setAttribute(
-      'transform',
-      `translate(${PAN_BUFFER}, ${PAN_BUFFER + panY}) scale(1, ${scaleY})`
-    );
-    groups.timeline.setAttribute(
-      'transform',
-      `translate(${PAN_BUFFER + ROW_LABEL_WIDTH + panX}, ${PAN_BUFFER + panY}) scale(${scaleX}, ${scaleY})`
-    );
-
-    const clipX = Math.max(0, -panX / scaleX);
-    groups.clipRect.setAttribute('x', String(clipX));
-
-    const { width, height } = contentSizeRef.current;
-    const timelineWidth = width - ROW_LABEL_WIDTH;
-    if (width > 0 && height > 0) {
-      const svgWidth = 2 * PAN_BUFFER + ROW_LABEL_WIDTH + timelineWidth * scaleX;
-      const svgHeight = 2 * PAN_BUFFER + height * scaleY;
-      svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgHeight}`);
-    }
-
-    const scaleText = Math.min(scaleX, scaleY);
-    container.querySelectorAll('.text-unstretch').forEach((g) => {
-      const x = parseFloat(g.getAttribute('data-x') ?? '0');
-      const y = parseFloat(g.getAttribute('data-y') ?? '0');
-      g.setAttribute('transform', `translate(${x},${y}) scale(${scaleText / scaleX},${scaleText / scaleY})`);
-    });
-    container.querySelectorAll('.text-unstretch-left').forEach((g) => {
-      const x = parseFloat(g.getAttribute('data-x') ?? '0');
-      const y = parseFloat(g.getAttribute('data-y') ?? '0');
-      g.setAttribute('transform', `translate(${x},${y}) scale(1,${1 / scaleY})`);
-    });
-  }, [scaleX, scaleY, panX, panY]);
+  const zoomBar = (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-t border-slate-800 shrink-0 flex-wrap">
+      <span className="text-xs text-slate-500">Zoom:</span>
+      <span className="text-xs text-slate-500">H</span>
+      <button
+        type="button"
+        onClick={() => handleZoomH(-1)}
+        className="px-1.5 py-0.5 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-200"
+        aria-label="Horizontal zoom out"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        onClick={() => handleZoomH(1)}
+        className="px-1.5 py-0.5 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-200"
+        aria-label="Horizontal zoom in"
+      >
+        +
+      </button>
+      <span className="text-xs text-slate-500 ml-1">V</span>
+      <button
+        type="button"
+        onClick={() => handleZoomV(-1)}
+        className="px-1.5 py-0.5 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-200"
+        aria-label="Vertical zoom out"
+      >
+        −
+      </button>
+      <button
+        type="button"
+        onClick={() => handleZoomV(1)}
+        className="px-1.5 py-0.5 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-200"
+        aria-label="Vertical zoom in"
+      >
+        +
+      </button>
+      <button
+        type="button"
+        onClick={handleReset}
+        className="ml-1 px-2 py-0.5 text-xs rounded bg-slate-700 hover:bg-slate-600 text-slate-200"
+      >
+        Reset
+      </button>
+      <span className="text-[10px] text-slate-600 ml-2 hidden sm:inline">
+        Wheel: scroll V · Shift+wheel: scroll H · Ctrl+wheel: zoom · Drag: pan
+      </span>
+    </div>
+  );
 
   return (
-    <div ref={containerRef} className="pt-4 pr-4 pb-4 pl-0 min-h-full min-w-0 flex flex-col relative">
-      <div className={`placeholder flex items-center justify-center h-48 text-slate-500 text-sm ${hasContent ? 'hidden' : ''}`}>
-        Compile LMP to see piano roll
-      </div>
-      {hasContent && (
-        <div className="flex-1 flex flex-col min-h-0 gap-2">
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <span className="text-xs text-slate-500">Zoom H:</span>
-            <button
-              type="button"
-              onClick={() => setScaleX((s) => Math.min(MAX_SCALE, s * ZOOM_FACTOR))}
-              className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              onClick={() => setScaleX((s) => Math.max(MIN_SCALE, s / ZOOM_FACTOR))}
-              className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              −
-            </button>
-            <span className="text-xs text-slate-500">V:</span>
-            <button
-              type="button"
-              onClick={() => setScaleY((s) => Math.min(MAX_SCALE, s * ZOOM_FACTOR))}
-              className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              onClick={() => setScaleY((s) => Math.max(MIN_SCALE, s / ZOOM_FACTOR))}
-              className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              −
-            </button>
-            <button
-              type="button"
-              onClick={resetZoomPan}
-              className="px-2 py-0.5 text-xs bg-slate-700 hover:bg-slate-600 rounded"
-            >
-              Reset
-            </button>
-            <span className="text-xs text-slate-500 ml-2">
-              Wheel: H · Ctrl+Wheel: V · Drag: pan
-            </span>
+    <div className="flex flex-col h-full min-h-0">
+      <div
+        ref={scrollRef}
+        tabIndex={0}
+        className="flex-1 flex min-h-0 overflow-auto outline-none"
+        onWheel={handleWheel}
+        onScroll={handleScroll}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div
+          className="flex shrink-0"
+          style={{
+            width: labelColumnWidth + 4 + contentWidth,
+            minHeight: RULER_HEIGHT + contentHeight,
+          }}
+        >
+        <div
+          style={{
+            width: labelColumnWidth,
+            minWidth: labelColumnWidth,
+            position: 'sticky',
+            left: 0,
+            zIndex: 1,
+            background: 'rgb(15, 23, 42)',
+          }}
+          className="shrink-0 flex flex-col border-r border-slate-700"
+        >
+          <div style={{ height: RULER_HEIGHT, minHeight: RULER_HEIGHT }} className="border-b border-slate-700 flex items-center px-1 text-xs text-slate-500" />
+          {tracks.map((track, ti) => {
+            const { order, emptyRows } = trackPitchOrders[ti];
+            const rowHeights = trackRowHeights[ti];
+            const firstPitchRowIdx = order.findIndex((o) => o !== 'break');
+            return (
+              <div
+                key={ti}
+                style={{ height: trackHeights[ti], minHeight: trackHeights[ti] }}
+                className="border-b border-slate-600 flex flex-col shrink-0"
+              >
+                {order.map((item, rowIdx) => {
+                  const rowH = rowHeights[rowIdx];
+                  const isBreak = item === 'break';
+                  const isFirstPitchRow = rowIdx === firstPitchRowIdx;
+                  return (
+                    <div
+                      key={isBreak ? `break-${ti}-${rowIdx}` : `${ti}-${item}`}
+                      style={{
+                        height: rowH,
+                        minHeight: rowH,
+                        flexShrink: 0,
+                        ...(isBreak && { background: 'rgba(148, 163, 184, 0.12)' }),
+                      }}
+                      className="relative px-1.5 flex flex-col justify-center items-end text-right min-w-0"
+                    >
+                      {isBreak ? (
+                        <span className="text-[10px] text-slate-400 select-none" aria-hidden>
+                          — —
+                        </span>
+                      ) : isFirstPitchRow ? (
+                        <div
+                          className="sticky top-0 z-10 flex items-center justify-start text-left text-[10px] font-medium text-slate-400 overflow-hidden text-ellipsis whitespace-nowrap"
+                          style={{
+                            left: 0,
+                            right: 0,
+                            width: '100%',
+                            height: rowH,
+                            minHeight: rowH,
+                            minWidth: 0,
+                            background: 'rgb(15, 23, 42)',
+                            marginLeft: -6,
+                            marginRight: -6,
+                            paddingLeft: 6,
+                            paddingRight: 6,
+                            boxSizing: 'border-box',
+                          }}
+                          title={track.name}
+                        >
+                          {track.name}
+                        </div>
+                      ) : (
+                        <span
+                          className="text-[11px] text-slate-500 font-mono tabular-nums select-none leading-tight truncate min-w-0 block w-full text-right"
+                          title={
+                            emptyRows.has(item)
+                              ? undefined
+                              : track.channel === 9
+                                ? String(item)
+                                : midiToPitchName(item)
+                          }
+                        >
+                          {emptyRows.has(item) ? (
+                            ' '
+                          ) : track.channel === 9 ? (
+                            track.notes.find((n) => n.midi === item)?.label ?? getDrumName(item)
+                          ) : (
+                            midiToPitchName(item)
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+        <div
+          role="separator"
+          aria-label="Resize label column"
+          onMouseDown={handleLabelResizeStart}
+          className="shrink-0 w-1 bg-slate-700 hover:bg-slate-500 cursor-col-resize active:bg-slate-400 transition-colors self-stretch"
+        />
+        <div className="flex-1 min-w-0 flex flex-col" style={{ minWidth: 0 }}>
+          <div
+            style={{
+              position: 'relative',
+              width: contentWidth,
+              minWidth: contentWidth,
+              height: RULER_HEIGHT,
+              background: RULER_BG,
+              borderBottom: '1px solid rgb(51, 65, 85)',
+            }}
+            className="shrink-0"
+          >
+            {Array.from({ length: Math.ceil(endBeat - startBeat) + 1 }, (_, i) => Math.floor(startBeat) + i).map(
+              (beat) => (
+                <div
+                  key={`line-${beat}`}
+                  style={{
+                    position: 'absolute',
+                    left: (beat - startBeat) * viewport.pixelsPerBeat,
+                    width: 1,
+                    height: RULER_HEIGHT,
+                    background: GRID_COLOR,
+                  }}
+                />
+              )
+            )}
+            {Array.from({ length: Math.ceil(endBeat - startBeat) + 1 }, (_, i) => Math.floor(startBeat) + i).map(
+              (beat) => (
+                <span
+                  key={`label-${beat}`}
+                  className="text-[10px] text-slate-500 absolute bottom-0"
+                  style={{ left: (beat - startBeat) * viewport.pixelsPerBeat + 2 }}
+                >
+                  {beat}
+                </span>
+              )
+            )}
           </div>
           <div
-            ref={viewportRef}
-            className="flex-1 min-h-0 overflow-auto border border-slate-700 select-none"
-            onWheel={handleWheel}
-            onMouseDown={handlePanStart}
-            style={{ cursor: 'grab' }}
+            style={{
+              width: contentWidth,
+              height: contentHeight,
+              clipPath: 'inset(0 0 0 0)',
+            }}
+            className="shrink-0"
           >
-            <div ref={svgContainerRef} className="min-w-0 h-full min-h-full" />
+            <canvas ref={canvasRef} style={{ display: 'block' }} />
           </div>
+        </div>
+        </div>
+      </div>
+      {zoomBar}
+      {hoveredNote && (
+        <div
+          className="fixed z-50 px-2 py-1.5 rounded bg-slate-800 border border-slate-600 text-xs text-slate-200 shadow-lg pointer-events-none"
+          style={{
+            left: hoveredNote.x + 12,
+            top: hoveredNote.y + 12,
+          }}
+        >
+          <div>{hoveredNote.note.label ?? midiToPitchName(hoveredNote.note.midi)}</div>
+          <div>Beat {hoveredNote.note.startBeat.toFixed(2)}</div>
+          <div>Duration {hoveredNote.note.durationBeat.toFixed(2)}</div>
+          <div>Velocity {Math.round(hoveredNote.note.velocity * 127)}</div>
+          {tooltipLine != null && <div>LMP line {tooltipLine}</div>}
         </div>
       )}
     </div>

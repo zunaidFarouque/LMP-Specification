@@ -1,21 +1,24 @@
 /**
  * LMP Pass 4: Event list + state → MIDI buffer.
- * midi-writer-js uses 128 ticks per beat; we use 480 internally. Scale when writing.
+ * Uses midi-file for writing with 480 ppqn (matches internal state).
+ * LMP beat 1.0 = MIDI tick 0 (absolute start). LMP beat 2.0 = tick 480, etc.
  */
-import MidiWriter from 'midi-writer-js';
+import { writeMidi } from 'midi-file';
 import { beatToTicks } from './utils.js';
 
 const DEFAULT_BPM = 120;
-const MIDI_WRITER_PPQN = 128;
-
-function toWriterTicks(ticks, ppqn) {
-  return Math.round((ticks * MIDI_WRITER_PPQN) / ppqn);
-}
+const MICROSECONDS_PER_MINUTE = 60000000;
 
 function semitonesToBend(semitones, pbrange) {
   const r = pbrange || 2;
   const n = Math.max(-r, Math.min(r, semitones));
   return n / r; // -1..1
+}
+
+function bendToMidi14(zeroOne) {
+  // zeroOne in [-1, 1] → MIDI 14-bit value in [-8192, 8191]
+  const v = Math.max(-1, Math.min(1, zeroOne));
+  return Math.round((v + 1) * 8191.5) - 8192;
 }
 
 /**
@@ -27,12 +30,12 @@ export function eventsToMidi(events, state) {
   const bpm = state.bpm ?? DEFAULT_BPM;
   const ppqn = state.ppqn ?? 480;
   const tracks = state.tracks || [];
+  const timesig = state.timesig || { num: 4, denom: 4 };
 
   const midiTracks = [];
+
   for (let ti = 0; ti < tracks.length; ti++) {
     const trackState = tracks[ti];
-    const track = new MidiWriter.Track();
-    track.addTrackName(trackState.name ?? `Track_${ti + 1}`);
     const defaultChannel = (trackState.channel ?? 1) - 1;
     const pbrange = trackState.pbrange ?? 2;
 
@@ -43,16 +46,17 @@ export function eventsToMidi(events, state) {
     const hasPB = trackEvents.some((e) => e.type === 'pb');
     const metaEvents = events.filter((e) => (e.type === 'tempo' || e.type === 'ts') && e.trackIndex === 0);
 
+    const lmpBeatToTick = (b) => Math.max(0, beatToTicks(b - 1, bpm, ppqn));
     const withTicks = [];
     for (const e of trackEvents) {
-      const tick = beatToTicks(e.beat, bpm, ppqn);
-      withTicks.push({ ...e, tick });
+      withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
     }
     for (const e of metaEvents) {
-      if (ti === 0) withTicks.push({ ...e, tick: beatToTicks(e.beat, bpm, ppqn) });
+      if (ti === 0) withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
     }
     if (ti === 0) {
       withTicks.push({ type: 'tempo', tick: 0, bpm });
+      withTicks.push({ type: 'ts', tick: 0, num: timesig.num, denom: timesig.denom });
     }
     if (hasPB) {
       withTicks.push({ type: 'pb', tick: 0, semitones: 0, trackIndex: ti });
@@ -67,72 +71,134 @@ export function eventsToMidi(events, state) {
       return (order[a.type] ?? 5) - (order[b.type] ?? 5);
     });
 
-    if (trackState.program !== undefined) {
-      track.addEvent(new MidiWriter.ProgramChangeEvent({ instrument: trackState.program, channel: defaultChannel + 1 }));
-    }
-    let lastTick = 0;
+    // Expand notes to noteOn/noteOff pairs for correct chord ordering
+    const flatEvents = [];
     for (const ev of withTicks) {
-      const delta = toWriterTicks(ev.tick - lastTick, ppqn);
+      if (ev.type === 'note') {
+        const startTick = lmpBeatToTick(ev.beat);
+        const endTick = lmpBeatToTick(ev.beat + (ev.duration ?? 0.25));
+        const durationTicks = Math.max(1, endTick - startTick);
+        flatEvents.push({ type: 'noteOn', tick: startTick, ev, durationTicks });
+        flatEvents.push({ type: 'noteOff', tick: startTick + durationTicks, ev });
+      } else {
+        flatEvents.push({ type: ev.type, tick: ev.tick, ev });
+      }
+    }
+    flatEvents.sort((a, b) => {
+      if (a.tick !== b.tick) return a.tick - b.tick;
+      return (a.type === 'noteOn' ? 0 : 1) - (b.type === 'noteOn' ? 0 : 1);
+    });
 
-      if (ev.type === 'tempo') {
-        track.setTempo(ev.bpm ?? bpm, toWriterTicks(ev.tick, ppqn));
-        lastTick = ev.tick;
+    const trackEventsOut = [];
+    let lastTick = 0;
+
+    // Track name
+    trackEventsOut.push({
+      deltaTime: 0,
+      type: 'trackName',
+      text: trackState.name ?? `Track_${ti + 1}`,
+    });
+
+    // Program change if set
+    if (trackState.program !== undefined) {
+      trackEventsOut.push({
+        deltaTime: 0,
+        type: 'programChange',
+        channel: defaultChannel,
+        programNumber: trackState.program,
+      });
+    }
+
+    for (const { type, tick, ev } of flatEvents) {
+      const delta = tick - lastTick;
+
+      if (type === 'tempo') {
+        trackEventsOut.push({
+          deltaTime: delta,
+          type: 'setTempo',
+          microsecondsPerBeat: Math.round(MICROSECONDS_PER_MINUTE / (ev.bpm ?? bpm)),
+        });
+        lastTick = tick;
         continue;
       }
-      if (ev.type === 'ts') {
-        track.setTimeSignature(ev.num ?? 4, ev.denom ?? 4);
-        lastTick = ev.tick;
+      if (type === 'ts') {
+        trackEventsOut.push({
+          deltaTime: delta,
+          type: 'timeSignature',
+          numerator: ev.num ?? 4,
+          denominator: ev.denom ?? 4,
+          metronome: 24,
+          thirtyseconds: 8,
+        });
+        lastTick = tick;
         continue;
       }
-      if (ev.type === 'cc') {
-        track.addEvent(
-          new MidiWriter.ControllerChangeEvent({
-            controllerNumber: ev.number,
-            controllerValue: ev.value,
-            delta,
-          })
-        );
-        lastTick = ev.tick;
+      if (type === 'cc') {
+        trackEventsOut.push({
+          deltaTime: delta,
+          type: 'controller',
+          channel: (ev.channel ?? trackState.channel ?? 1) - 1,
+          controllerType: ev.number,
+          value: ev.value,
+        });
+        lastTick = tick;
         continue;
       }
-      if (ev.type === 'pb') {
+      if (type === 'pb') {
         const ch = (ev.channel ?? trackState.channel ?? 1) - 1;
         const bend = semitonesToBend(ev.semitones ?? 0, pbrange);
-        track.addEvent(
-          new MidiWriter.PitchBendEvent({
-            bend,
-            channel: ch,
-            delta,
-          })
-        );
-        lastTick = ev.tick;
+        trackEventsOut.push({
+          deltaTime: delta,
+          type: 'pitchBend',
+          channel: ch,
+          value: bendToMidi14(bend),
+        });
+        lastTick = tick;
         continue;
       }
-      if (ev.type === 'note') {
-        const ch = (ev.channel ?? trackState.channel ?? 1);
-        const startTick = beatToTicks(ev.beat, bpm, ppqn);
-        const endTick = beatToTicks(ev.beat + (ev.duration ?? 0.25), bpm, ppqn);
-        const durationTicks = Math.max(1, endTick - startTick);
+      if (type === 'noteOn') {
+        const ch = (ev.channel ?? trackState.channel ?? 1) - 1;
         const velocity = Math.max(1, Math.min(127, ev.velocity ?? 100));
-        track.addEvent(
-          new MidiWriter.NoteEvent({
-            pitch: ev.midi,
-            duration: `T${toWriterTicks(durationTicks, ppqn)}`,
-            velocity,
-            channel: ch,
-            startTick: toWriterTicks(startTick, ppqn),
-          })
-        );
-        lastTick = ev.tick;
+        trackEventsOut.push({
+          deltaTime: delta,
+          type: 'noteOn',
+          channel: ch,
+          noteNumber: ev.midi,
+          velocity,
+        });
+        lastTick = tick;
+        continue;
+      }
+      if (type === 'noteOff') {
+        const ch = (ev.channel ?? trackState.channel ?? 1) - 1;
+        trackEventsOut.push({
+          deltaTime: delta,
+          type: 'noteOff',
+          channel: ch,
+          noteNumber: ev.midi,
+          velocity: 0,
+        });
+        lastTick = tick;
       }
     }
 
-    if (ti === 0 && !withTicks.some((e) => e.type === 'tempo')) {
-      track.setTempo(bpm, 0);
-    }
-    midiTracks.push(track);
+    trackEventsOut.push({
+      deltaTime: 0,
+      type: 'endOfTrack',
+    });
+
+    midiTracks.push(trackEventsOut);
   }
 
-  const writer = new MidiWriter.Writer(midiTracks);
-  return writer.buildFile();
+  const midiData = {
+    header: {
+      format: 1,
+      numTracks: midiTracks.length,
+      ticksPerBeat: ppqn,
+    },
+    tracks: midiTracks,
+  };
+
+  const bytes = writeMidi(midiData);
+  return new Uint8Array(bytes);
 }

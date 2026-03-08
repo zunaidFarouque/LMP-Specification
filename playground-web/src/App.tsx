@@ -1,21 +1,39 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Header } from './components/Header';
 import { EditorPanel } from './components/EditorPanel';
 import { PreviewPanel } from './components/PreviewPanel';
-import { ResizableSplit } from './components/ResizableSplit';
 import { LibraryLoader } from './components/LibraryLoader';
 import { useLmpCore } from './hooks/useLmpCore';
+import type { SourceMap } from './hooks/useLmpCore';
 import { EXAMPLES } from './constants/examples';
 
 function App() {
-  const { isReady, compile, decompile, parseMidi, onLibraryLoaded } = useLmpCore();
+  const { isReady, compile, decompile, onLibraryLoaded } = useLmpCore();
   const [lmpText, setLmpText] = useState<string>(EXAMPLES.chords);
   const [midi, setMidi] = useState<Uint8Array | null>(null);
-  const [sourceMap, setSourceMap] = useState<Map<string, number> | null>(null);
+  const [sourceMap, setSourceMap] = useState<SourceMap | null>(null);
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
   const [status, setStatus] = useState('');
   const [statusError, setStatusError] = useState(false);
-  const [drumMap, setDrumMap] = useState<{ noteToName: Map<number, string>; displayOrder: number[] } | null>(null);
-  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
+  const [leftPanelPercent, setLeftPanelPercent] = useState(50);
+  const mainRef = useRef<HTMLElement>(null);
+
+  const handleResizeMove = useCallback((e: MouseEvent) => {
+    const main = mainRef.current;
+    if (!main) return;
+    const rect = main.getBoundingClientRect();
+    const pct = ((e.clientX - rect.left) / rect.width) * 100;
+    setLeftPanelPercent(Math.min(80, Math.max(20, pct)));
+  }, []);
+
+  const handleResizeStart = useCallback(() => {
+    const onUp = () => {
+      document.removeEventListener('mousemove', handleResizeMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', handleResizeMove);
+    document.addEventListener('mouseup', onUp);
+  }, [handleResizeMove]);
 
   const handleCompile = useCallback(
     (text: string) => {
@@ -30,14 +48,15 @@ function App() {
       try {
         const result = compile(t, { sourceMap: true });
         if (result && typeof result === 'object' && 'midi' in result) {
-          const { midi: m, sourceMap: sm } = result;
-          setMidi(m);
+          const { midi: bytes, sourceMap: sm } = result as { midi: Uint8Array; sourceMap?: SourceMap };
+          setMidi(bytes ?? null);
           setSourceMap(sm ?? null);
-          setStatus(m ? `Compiled: ${m.length} bytes` : '');
+          setStatus(bytes ? `Compiled: ${bytes.length} bytes` : '');
         } else {
-          setMidi(result as Uint8Array);
+          const bytes = result as Uint8Array | null;
+          setMidi(bytes ?? null);
           setSourceMap(null);
-          setStatus(result ? `Compiled: ${(result as Uint8Array).length} bytes` : '');
+          setStatus(bytes ? `Compiled: ${bytes.length} bytes` : '');
         }
         setStatusError(false);
       } catch (err) {
@@ -48,23 +67,6 @@ function App() {
       }
     },
     [compile]
-  );
-
-  const handleDecompile = useCallback(
-    (buf: Uint8Array) => {
-      if (!decompile) return;
-      try {
-        const lmp = decompile(buf);
-        setLmpText(lmp);
-        setStatus('Decompiled to LMP');
-        setStatusError(false);
-        handleCompile(lmp);
-      } catch (err) {
-        setStatus('Decompile error: ' + ((err as Error).message || String(err)));
-        setStatusError(true);
-      }
-    },
-    [decompile, handleCompile]
   );
 
   const handleDownload = useCallback(() => {
@@ -91,31 +93,36 @@ function App() {
         onDownload={handleDownload}
         canDownload={!!midi}
       />
-      <main className="flex-1 flex flex-col lg:flex-row min-h-0">
-        <ResizableSplit
-          left={
-            <EditorPanel
-              value={lmpText}
-              onChange={(v) => setLmpText(v)}
-              onCompile={handleCompile}
-              status={status}
-              statusError={statusError}
-              highlightedLine={highlightedLine}
-            />
-          }
-          right={
-            <PreviewPanel
-              midi={midi}
-              sourceMap={sourceMap}
-              drumMap={drumMap}
-              onDrumMapChange={setDrumMap}
-              onDecompile={handleDecompile}
-              parseMidi={parseMidi}
-              onNoteHover={setHighlightedLine}
-              lmpText={lmpText}
-            />
-          }
+      <main ref={mainRef} className="flex-1 flex flex-row min-h-0 min-w-0 relative">
+        <div className="flex flex-col min-h-0 shrink-0" style={{ width: `${leftPanelPercent}%` }}>
+          <EditorPanel
+            value={lmpText}
+            onChange={(v) => setLmpText(v)}
+            onCompile={handleCompile}
+            status={status}
+            statusError={statusError}
+            highlightedLine={highlightedLine}
+          />
+        </div>
+        <div
+          role="separator"
+          aria-label="Resize panels"
+          onMouseDown={handleResizeStart}
+          className="w-1 shrink-0 bg-slate-700 hover:bg-slate-500 cursor-col-resize active:bg-slate-400 transition-colors"
         />
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+          <PreviewPanel
+          midi={midi}
+          sourceMap={sourceMap}
+          onDecompiledLmp={(text) => {
+            setLmpText(text);
+            handleCompile(text);
+          }}
+          decompile={decompile}
+          lmpText={lmpText}
+          onHighlightLine={setHighlightedLine}
+          />
+        </div>
       </main>
     </div>
   );

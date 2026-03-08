@@ -1,49 +1,32 @@
 import { useEffect, useRef } from 'react';
-import { StateEffect, StateField } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
-import { Decoration, ViewPlugin } from '@codemirror/view';
 import { syntaxHighlighting } from '@codemirror/language';
+import { StateEffect, StateField } from '@codemirror/state';
+import { Decoration, type DecorationSet } from '@codemirror/view';
 import { useDebounce } from '../hooks/useDebounce';
 import { lmpLanguage, lmpHighlight } from '../codemirror';
 
-const highlightLineEffect = StateEffect.define<number | null>();
-const highlightLineField = StateField.define<number | null>({
-  create: () => null,
-  update: (val, tr) => {
-    for (const e of tr.effects) if (e.is(highlightLineEffect)) return e.value;
-    return val;
-  },
-});
+const SetHighlightEffect = StateEffect.define<number | null>();
 
-const highlightLinePlugin = ViewPlugin.fromClass(
-  class {
-    decorations: import('@codemirror/view').DecorationSet;
-    constructor(readonly view: EditorView) {
-      this.decorations = this.buildDeco();
-    }
-    update(update: import('@codemirror/view').ViewUpdate) {
-      if (update.state.field(highlightLineField) !== update.startState.field(highlightLineField)) {
-        this.decorations = this.buildDeco();
+const highlightLineField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(value, tr) {
+    for (const e of tr.effects) {
+      if (e.is(SetHighlightEffect)) {
+        const lineNum = e.value;
+        if (lineNum == null || lineNum < 1) return Decoration.none;
+        const doc = tr.state.doc;
+        if (lineNum > doc.lines) return Decoration.none;
+        const line = doc.line(lineNum);
+        return Decoration.set([Decoration.line({ class: 'cm-lmp-highlighted-line' }).range(line.from)]);
       }
     }
-    buildDeco() {
-      const line = this.view.state.field(highlightLineField);
-      if (line == null || line < 1) return Decoration.none;
-      const doc = this.view.state.doc;
-      if (line > doc.lines) return Decoration.none;
-      const { from } = doc.line(line);
-      return Decoration.set([
-        Decoration.line({ class: 'cm-piano-roll-highlight' }).range(from),
-      ]);
-    }
+    return value;
   },
-  { decorations: (v) => v.decorations }
-);
-
-const highlightLineExtension = [
-  highlightLineField,
-  highlightLinePlugin,
-];
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 type Props = {
   value: string;
@@ -54,7 +37,7 @@ type Props = {
   highlightedLine?: number | null;
 };
 
-export function EditorPanel({ value, onChange, onCompile, status, statusError, highlightedLine }: Props) {
+export function EditorPanel({ value, onChange, onCompile, status, statusError, highlightedLine = null }: Props) {
   const debouncedValue = useDebounce(value, 200);
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -71,7 +54,7 @@ export function EditorPanel({ value, onChange, onCompile, status, statusError, h
         basicSetup,
         lmpLanguage,
         syntaxHighlighting(lmpHighlight),
-        highlightLineExtension,
+        highlightLineField,
         EditorView.updateListener.of((v) => {
           if (v.docChanged) {
             onChange(v.state.doc.toString());
@@ -89,6 +72,12 @@ export function EditorPanel({ value, onChange, onCompile, status, statusError, h
 
   useEffect(() => {
     const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: SetHighlightEffect.of(highlightedLine ?? null) });
+  }, [highlightedLine]);
+
+  useEffect(() => {
+    const view = viewRef.current;
     if (view && value !== view.state.doc.toString()) {
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: value },
@@ -96,15 +85,8 @@ export function EditorPanel({ value, onChange, onCompile, status, statusError, h
     }
   }, [value]);
 
-  useEffect(() => {
-    const view = viewRef.current;
-    if (view) {
-      view.dispatch({ effects: highlightLineEffect.of(highlightedLine ?? null) });
-    }
-  }, [highlightedLine]);
-
   return (
-    <section className="flex flex-col min-h-[300px] lg:min-h-0 w-full border-b lg:border-b-0 lg:border-r border-slate-800">
+    <section className="flex flex-col min-h-[300px] lg:min-h-0 flex-1 min-w-0 border-b lg:border-b-0 lg:border-r border-slate-800">
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900/50">
         <label className="text-sm font-medium text-slate-400">LMP Source</label>
       </div>

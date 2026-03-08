@@ -11,6 +11,7 @@
   "dependencies": {
     "@codemirror/state": "^6.4.0",
     "@codemirror/view": "^6.23.0",
+    "@tonejs/midi": "^2.0.28",
     "codemirror": "^6.0.1",
     "lmp-core": "file:../compiler-js",
     "lucide-react": "^0.300.0",

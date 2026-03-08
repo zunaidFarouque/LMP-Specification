@@ -1,8 +1,13 @@
 /**
  * MIDI → LMP decompiler. Converts binary MIDI to LMP text.
+ * MIDI tick 0 = LMP beat 1.0 (display convention).
  */
 import { parseMidi } from 'midi-file';
 import { midiToSpn, ticksToBeat } from './utils.js';
+
+function tickToLmpBeat(tick, ppqn) {
+  return ticksToBeat(tick, ppqn) + 1;
+}
 
 const DEFAULT_BPM = 120;
 const DEFAULT_PPQN = 480;
@@ -183,7 +188,7 @@ export function decompile(midiBuffer, options = {}) {
     const tsAtTick = [];
 
     for (const e of trackEvents) {
-      const beat = roundBeat(ticksToBeat(e.tick, ppqn));
+      const beat = roundBeat(tickToLmpBeat(e.tick, ppqn));
       if (e.type === 'note') {
         if (!noteGroups.has(e.tick)) noteGroups.set(e.tick, []);
         noteGroups.get(e.tick).push({
@@ -204,14 +209,14 @@ export function decompile(midiBuffer, options = {}) {
 
     const allBeats = new Set();
     for (const e of trackEvents) {
-      const beat = roundBeat(ticksToBeat(e.tick, ppqn));
+      const beat = roundBeat(tickToLmpBeat(e.tick, ppqn));
       if (['note', 'cc', 'pb', 'tempo', 'ts'].includes(e.type)) allBeats.add(beat);
     }
 
     const sortedBeats = [...allBeats].sort((a, b) => a - b);
 
     for (const beat of sortedBeats) {
-      const tick = Math.round(beat * ppqn);
+      const tick = Math.round((beat - 1) * ppqn);
 
       for (const e of tempoAtTick.filter((x) => x.beat === beat)) {
         lines.push(`${beat} TEMPO ${e.bpm}`);

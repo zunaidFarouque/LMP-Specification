@@ -13,15 +13,7 @@ body {
   @apply font-mono;
 }
 
-/* Tippy tooltip overrides for dark theme */
-.tippy-box[data-theme~='translucent'] {
-  @apply text-slate-100 text-sm;
-}
-.tippy-content {
-  @apply font-mono;
+.cm-lmp-highlighted-line {
+  background-color: rgba(16, 185, 129, 0.2);
 }
 
-/* Piano roll note hover → editor line highlight */
-.cm-piano-roll-highlight {
-  background-color: rgba(245, 158, 11, 0.2);
-}
