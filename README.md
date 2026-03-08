@@ -2,6 +2,8 @@
 
 An ultra-lean, token-efficient text-to-MIDI music sequencing protocol engineered specifically for Large Language Models (LLMs) and autonomous agent workflows.
 
+**🌐 [Website](https://zunaidfarouque.github.io/LMP-Specification/)** — Specification, LLM guides, playground, and LMP ↔ MIDI API.
+
 ## 🎵 What is LMP?
 
 The **Lean Musical Protocol (LMP)** is a stateful, Space-Separated Value (SSV) grid format designed to act as the perfect intermediary language between AI models and binary MIDI data. 

@@ -13,7 +13,7 @@
   "use strict";
 
   const API_PAGE_URL =
-    "https://zunaidfarouque.github.io/LMP-Specification/api.html";
+    "https://zunaidfarouque.github.io/LMP-Specification/api/run.html";
   const LMP_HEADER_REGEX = /@LMP\s+[\d.]+/i;
   const TRACK1_REGEX = /@TRACK\s+1\s+(\S+)/;
   const LINES_TO_CHECK = 10;

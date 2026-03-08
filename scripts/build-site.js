@@ -174,6 +174,8 @@ async function main() {
   console.log('Copying site root files...');
   cpSync(join(siteDir, 'index.html'), join(distDir, 'index.html'));
   cpSync(join(siteDir, 'api.html'), join(distDir, 'api.html'));
+  mkdirSync(join(distDir, 'api'), { recursive: true });
+  cpSync(join(siteDir, 'api', 'run.html'), join(distDir, 'api', 'run.html'));
 
   console.log('Done. Output:', distDir);
 }

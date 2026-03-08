@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMP API</title>
+</head>
+<body>
+  <script src="https://cdn.jsdelivr.net/gh/zunaidFarouque/LMP-Specification@main/compiler-js/dist/lmp-core.v1.iife.min.js" onload="run()"></script>
+  <script>
+    function showJson(obj) {
+      document.body.innerHTML = '<pre>' + JSON.stringify(obj, null, 2) + '</pre>';
+    }
+
+    function parseHash() {
+      var h = location.hash.slice(1);
+      if (!h) return null;
+      var out = {};
+      h.split('&').forEach(function(pair) {
+        var i = pair.indexOf('=');
+        if (i === -1) return;
+        var k = decodeURIComponent(pair.slice(0, i).replace(/\+/g, ' '));
+        var v = decodeURIComponent(pair.slice(i + 1));
+        out[k] = v;
+      });
+      return out;
+    }
+
+    function base64ToUtf8(b64) {
+      try {
+        return decodeURIComponent(escape(atob(b64)));
+      } catch (e) {
+        throw new Error('Invalid base64 or encoding for LMP text');
+      }
+    }
+
+    function base64ToBytes(b64) {
+      var bin = atob(b64);
+      var bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+
+    function downloadBlob(blob, filename) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || 'output';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function run() {
+      var params = parseHash();
+      if (!params || Object.keys(params).length === 0) {
+        showJson({ error: 'Missing or invalid parameters' });
+        return;
+      }
+
+      var dir = (params.dir || '').toLowerCase();
+      var closeAfter = params.close === '1' || params.close === 'true';
+      var filename = params.filename || '';
+
+      try {
+        if (dir === 'lmp2midi' && params.lmp != null) {
+          var lmpText = base64ToUtf8(params.lmp);
+          var loose = params.loose === '1' || params.loose === 'true';
+          var r = window.LMP.compile(lmpText, { loose: loose });
+          var midi = r.midi || r;
+          var warnings = r.warnings;
+          var blob = new Blob([midi], { type: 'audio/midi' });
+          downloadBlob(blob, filename || 'output.mid');
+          if (warnings && warnings.length > 0) showJson({ warnings: warnings });
+          if (closeAfter && (window.opener || window.history.length <= 1)) setTimeout(window.close, 300);
+          return;
+        }
+
+        if (dir === 'midi2lmp' && params.midi != null) {
+          var bytes = base64ToBytes(params.midi);
+          var preferSpn = params.preferSpn !== '0' && params.preferSpn !== 'false';
+          var precision = parseInt(params.precision, 10);
+          if (isNaN(precision) || precision < 1) precision = 3;
+          var lmpStr = window.LMP.decompile(bytes, { preferSpn: preferSpn, precision: precision });
+          var blob = new Blob([lmpStr], { type: 'text/plain' });
+          downloadBlob(blob, filename || 'output.lmp');
+          if (closeAfter && (window.opener || window.history.length <= 1)) setTimeout(window.close, 300);
+          return;
+        }
+
+        showJson({ error: 'Missing or invalid parameters' });
+      } catch (e) {
+        showJson({ error: e && e.message ? e.message : String(e) });
+      }
+    }
+  </script>
+</body>
+</html>
