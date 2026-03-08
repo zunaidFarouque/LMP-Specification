@@ -1,0 +1,11 @@
+{
+  "name": "lmp-specification",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lean Musical Protocol — specification, compiler, and web playground",
+  "scripts": {
+    "build": "cd compiler-js && bun run build",
+    "build:web": "cd compiler-js && bun run build:web",
+    "test": "cd compiler-js && bun test"
+  }
+}

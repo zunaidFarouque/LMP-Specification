@@ -29,13 +29,13 @@ bun run lmp song.lmp --loose
 
 ## Browser Playground
 
-**testGroundWeb** — Full website with piano roll visualization, examples, and download. From `LMP Compiler (JS)/`:
+**testground-web** — Full website with piano roll visualization, examples, and download. Located at repo root `testground-web/`. From `compiler-js/`:
 
 ```bash
 bun run build:web
 ```
 
-Then open `testground/testGroundWeb/index.html` or serve the folder. GitHub Pages compatible.
+Then open `testground-web/index.html` or serve the folder. GitHub Pages compatible.
 
 **testground.html** — Lightweight single-file playground. Open in browser (double-click or `file://`). On first load, click **Load LMP library** and select `dist/lmp-core.v1.iife.min.js` (cached in localStorage). Features: live LMP → MIDI preview, drag-and-drop `.mid` to decompile.
 
@@ -52,7 +52,7 @@ bun run decompile song.mid -o output.lmp
 ## Creating an LMP file
 
 1. Create a `.lmp` file (e.g. `testground/my-song.lmp`)
-2. Write LMP syntax per the spec (see `LMP Specifications/LMP v1 - Spec.md`)
+2. Write LMP syntax per the spec (see `specs/LMP v1 - Spec.md` or `../../specs/LMP v1 - Spec.md`)
 3. Run: `bun run lmp testground/my-song.lmp`
 4. Open the generated `.mid` file in a DAW or MIDI player
 
