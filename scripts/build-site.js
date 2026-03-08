@@ -176,6 +176,10 @@ async function main() {
   cpSync(join(siteDir, 'api.html'), join(distDir, 'api.html'));
   mkdirSync(join(distDir, 'api'), { recursive: true });
   cpSync(join(siteDir, 'api', 'run.html'), join(distDir, 'api', 'run.html'));
+  const compilerIife = join(root, 'compiler-js', 'dist', 'lmp-core.v1.iife.min.js');
+  if (existsSync(compilerIife)) {
+    cpSync(compilerIife, join(distDir, 'api', 'lmp-core.v1.iife.min.js'));
+  }
 
   console.log('Done. Output:', distDir);
 }

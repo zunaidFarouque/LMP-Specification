@@ -92,7 +92,7 @@
     }
 
     var script = document.createElement('script');
-    script.src = '/LMP-Specification/playground/lmp-core.v1.iife.min.js';
+    script.src = 'lmp-core.v1.iife.min.js';
     script.onload = function() { run(); };
     script.onerror = function() { showJson({ error: 'Failed to load compiler.' }); };
     document.head.appendChild(script);
