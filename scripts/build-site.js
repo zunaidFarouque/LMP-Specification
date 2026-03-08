@@ -86,35 +86,85 @@ async function main() {
   );
 
   console.log('Generating LLM guides...');
-  const llmFiles = [
-    { file: 'LMP-AI-General.md', title: 'General' },
-    { file: 'LMP-AI-Melodic.md', title: 'Melodic' },
-    { file: 'LMP-AI-Percussive.md', title: 'Percussive' },
-    { file: 'LMP-AI-Tabla.md', title: 'Tabla' },
+  const GITHUB_RAW =
+    'https://github.com/zunaidFarouque/LMP-Specification/raw/main/specs/ai/Custom%20Drummap%20Examples/Indian%20Tablas';
+  const indianTablasDir = join(specsAiDir, 'Custom Drummap Examples', 'Indian Tablas');
+
+  const coreGuides = [
+    {
+      file: 'LMP-AI-General.md',
+      title: 'General',
+      slug: 'general',
+      description:
+        'Core LMP concepts, syntax, and conventions for any use case. Covers headers, tracks, events, and the protocol basics.',
+    },
+    {
+      file: 'LMP-AI-Melodic.md',
+      title: 'Melodic',
+      slug: 'melodic',
+      description:
+        'Optimized for pitched, melodic instruments. Covers GM melodic patches, note names (SPN), velocity, duration, and typical melodic sequencing.',
+    },
+    {
+      file: 'LMP-AI-Percussive.md',
+      title: 'Percussive',
+      slug: 'percussive',
+      description:
+        'Optimized for drums. Covers basic GM percussion: Bass Drum, Snare, Toms, Cymbals, Ride bells, Hi-hat, and related articulations.',
+    },
   ];
+
   const llmOutDir = join(distDir, 'llm');
   mkdirSync(llmOutDir, { recursive: true });
 
-  const llmLinks = [];
-  for (const { file, title } of llmFiles) {
+  const coreLinks = [];
+  for (const { file, title, slug, description } of coreGuides) {
     const path = join(specsAiDir, file);
     if (!existsSync(path)) continue;
     const md = readFileSync(path, 'utf-8');
     const html = marked.parse(md);
-    const slug = file.replace('LMP-AI-', '').replace('.md', '').toLowerCase();
     writeFileSync(
       join(llmOutDir, `${slug}.html`),
       pageTemplate(`LMP AI: ${title}`, html)
     );
-    llmLinks.push(`<a href="${BASE}/llm/${slug}.html">${title}</a>`);
+    coreLinks.push(
+      `<li><a href="${BASE}/llm/${slug}.html">${title}</a> — ${description}</li>`
+    );
+  }
+
+  const tablaMdPath = join(indianTablasDir, 'LMP-AI-Tabla.md');
+  let tablaSection = '';
+  if (existsSync(tablaMdPath)) {
+    const tablaMd = readFileSync(tablaMdPath, 'utf-8');
+    const tablaHtml = marked.parse(tablaMd);
+    writeFileSync(
+      join(llmOutDir, 'tabla.html'),
+      pageTemplate('LMP AI: Tabla (Indian Tabla)', tablaHtml)
+    );
+    const tablaGuideUrl = `${BASE}/llm/tabla.html`;
+    const tsvName = 'Tablas 2.0 - Drummap Summary.tsv';
+    const drmName = 'Tablas 2.0 - FINAL.drm';
+    const tsvUrl = `${GITHUB_RAW}/${encodeURIComponent(tsvName)}`;
+    const drmUrl = `${GITHUB_RAW}/${encodeURIComponent(drmName)}`;
+    tablaSection = `
+    <h2>Custom Drummap Examples</h2>
+    <h3>Indian Tabla</h3>
+    <p>An adaptation of LMP optimized for Indian Tabla. The guide uses custom drummaps; the drummap files used to create and interpret Tabla LMP are available in the repository and linked below.</p>
+    <ul>
+      <li><a href="${tablaGuideUrl}">LMP-AI-Tabla guide</a> — Read the Tabla-specific LMP guide.</li>
+      <li><a href="${tsvUrl}">${tsvName}</a> — Drummap summary (TSV).</li>
+      <li><a href="${drmUrl}">${drmName}</a> — Drummap definition (DRM).</li>
+    </ul>`;
   }
 
   const llmIndexHtml = `
     <h1>LLM Guides</h1>
     <p>These guides are written for AI assistants and large language models. They explain how to read, write, and reason about LMP (Lean Musical Protocol) in plain language, with examples and constraints tailored for model consumption.</p>
-    <p>Use them as system or context material when building tools that generate or interpret LMP. Each guide focuses on a different musical domain:</p>
-    <ul>${llmLinks.map((l) => `<li>${l}</li>`).join('')}</ul>
-    <p>For the full technical specification, see the <a href="${BASE}/specification/">LMP v1 Specification</a>.</p>
+    <p>Use them as system or context material when building tools that generate or interpret LMP.</p>
+    <h2>Core guides</h2>
+    <ul>${coreLinks.join('')}</ul>
+    ${tablaSection}
+    <p style="margin-top:2rem">For the full technical specification, see the <a href="${BASE}/specification/">LMP v1 Specification</a>.</p>
   `;
   writeFileSync(
     join(llmOutDir, 'index.html'),
