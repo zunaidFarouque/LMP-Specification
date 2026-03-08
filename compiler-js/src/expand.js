@@ -171,7 +171,7 @@ export function expand(lines, state, options = {}) {
   let pendingModifiers = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const { type, tokens } = lines[i];
+    const { type, tokens, sourceLine } = lines[i];
     if (!tokens.length) continue;
 
     if (type === 'header') {
@@ -226,6 +226,7 @@ export function expand(lines, state, options = {}) {
             midi: pitch.midi,
             velocity,
             duration,
+            sourceLine,
           });
         }
       }
@@ -361,6 +362,7 @@ export function expand(lines, state, options = {}) {
             midi: p.midi,
             velocity: vel,
             duration: dur,
+            sourceLine,
           });
         }
         lastBaseBeat = beat;
@@ -378,6 +380,7 @@ export function expand(lines, state, options = {}) {
           midi,
           velocity,
           duration,
+          sourceLine,
         }));
         lastRepeatingNotes = notes;
         lastBaseBeat = null;
@@ -398,6 +401,7 @@ export function expand(lines, state, options = {}) {
         velocity,
         duration: dur,
         _legato: needLegato,
+        sourceLine,
       });
       lastBaseBeat = beat;
     }

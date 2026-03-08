@@ -2130,7 +2130,7 @@ function preprocess(lmpText) {
     }
     if (tokens.length === 0) continue;
     const type = classify(tokens);
-    result.push({ type, tokens });
+    result.push({ type, tokens, sourceLine: i + 1 });
   }
   return result;
 }
@@ -2521,7 +2521,7 @@ function expand(lines, state, options = {}) {
   let lastRepeatingNotes = null;
   let pendingModifiers = [];
   for (let i = 0; i < lines.length; i++) {
-    const { type, tokens } = lines[i];
+    const { type, tokens, sourceLine } = lines[i];
     if (!tokens.length) continue;
     if (type === "header") {
       const key = tokens[0].toUpperCase();
@@ -2573,7 +2573,8 @@ function expand(lines, state, options = {}) {
             beat: lastBaseBeat,
             midi: pitch.midi,
             velocity,
-            duration
+            duration,
+            sourceLine
           });
         }
       }
@@ -2702,7 +2703,8 @@ function expand(lines, state, options = {}) {
             beat,
             midi: p.midi,
             velocity: vel,
-            duration: dur2
+            duration: dur2,
+            sourceLine
           });
         }
         lastBaseBeat = beat;
@@ -2718,7 +2720,8 @@ function expand(lines, state, options = {}) {
           beat: b,
           midi,
           velocity,
-          duration
+          duration,
+          sourceLine
         }));
         lastRepeatingNotes = notes;
         lastBaseBeat = null;
@@ -2736,7 +2739,8 @@ function expand(lines, state, options = {}) {
         midi: pitch.midi,
         velocity,
         duration: dur,
-        _legato: needLegato
+        _legato: needLegato,
+        sourceLine
       });
       lastBaseBeat = beat;
     }
@@ -2774,6 +2778,10 @@ function expand(lines, state, options = {}) {
 // src/midi.js
 var import_midi_writer_js = __toESM(require_build2(), 1);
 var DEFAULT_BPM = 120;
+var MIDI_WRITER_PPQN = 128;
+function toWriterTicks(ticks, ppqn) {
+  return Math.round(ticks * MIDI_WRITER_PPQN / ppqn);
+}
 function semitonesToBend(semitones, pbrange) {
   const r = pbrange || 2;
   const n = Math.max(-r, Math.min(r, semitones));
@@ -2823,9 +2831,9 @@ function eventsToMidi(events, state) {
     }
     let lastTick = 0;
     for (const ev of withTicks) {
-      const delta = ev.tick - lastTick;
+      const delta = toWriterTicks(ev.tick - lastTick, ppqn);
       if (ev.type === "tempo") {
-        track.setTempo(ev.bpm ?? bpm, ev.tick);
+        track.setTempo(ev.bpm ?? bpm, toWriterTicks(ev.tick, ppqn));
         lastTick = ev.tick;
         continue;
       }
@@ -2867,10 +2875,10 @@ function eventsToMidi(events, state) {
         track.addEvent(
           new import_midi_writer_js.default.NoteEvent({
             pitch: ev.midi,
-            duration: `T${durationTicks}`,
+            duration: `T${toWriterTicks(durationTicks, ppqn)}`,
             velocity,
             channel: ch,
-            startTick
+            startTick: toWriterTicks(startTick, ppqn)
           })
         );
         lastTick = ev.tick;
@@ -3086,12 +3094,25 @@ function decompile(midiBuffer, options = {}) {
 var import_midi_file2 = __toESM(require_midi_file(), 1);
 function compile(lmpText, options = {}) {
   const loose = options?.loose === true;
+  const withSourceMap = options?.sourceMap === true;
   const warnings = loose ? [] : void 0;
   const opts = loose ? { loose: true, warnings } : {};
   const lines = preprocess(lmpText);
   const state = buildState(lines, opts);
   const events = expand(lines, state, opts);
   const midi = eventsToMidi(events, state);
+  if (withSourceMap) {
+    const sourceMap = /* @__PURE__ */ new Map();
+    for (const e of events) {
+      if (e.type === "note" && e.sourceLine != null) {
+        const b = Math.round(e.beat * 1e3) / 1e3;
+        const key = `${b}_${e.trackIndex}_${e.midi}`;
+        sourceMap.set(key, e.sourceLine);
+      }
+    }
+    if (loose) return { midi, warnings, sourceMap };
+    return { midi, sourceMap };
+  }
   if (loose) return { midi, warnings };
   return midi;
 }

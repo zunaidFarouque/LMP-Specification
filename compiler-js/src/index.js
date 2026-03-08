@@ -20,6 +20,7 @@ import { parseMidi } from 'midi-file';
  */
 export function compile(lmpText, options = {}) {
   const loose = options?.loose === true;
+  const withSourceMap = options?.sourceMap === true;
   const warnings = loose ? [] : undefined;
   const opts = loose ? { loose: true, warnings } : {};
 
@@ -28,6 +29,18 @@ export function compile(lmpText, options = {}) {
   const events = expand(lines, state, opts);
   const midi = eventsToMidi(events, state);
 
+  if (withSourceMap) {
+    const sourceMap = new Map();
+    for (const e of events) {
+      if (e.type === 'note' && e.sourceLine != null) {
+        const b = Math.round(e.beat * 1000) / 1000;
+        const key = `${b}_${e.trackIndex}_${e.midi}`;
+        sourceMap.set(key, e.sourceLine);
+      }
+    }
+    if (loose) return { midi, warnings, sourceMap };
+    return { midi, sourceMap };
+  }
   if (loose) return { midi, warnings };
   return midi;
 }

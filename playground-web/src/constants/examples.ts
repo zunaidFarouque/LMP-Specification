@@ -1,0 +1,49 @@
+export const EXAMPLES = {
+  minimal: `@LMP 1.0
+@BPM 120
+@TRACK 1 Test
+@CHANNEL 1
+
+1.0 C4
+`,
+  chords: `@LMP 1.0
+@BPM 120
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+@PROGRAM 0
+@DEFAULT_VEL 80
+@DEFAULT_DUR 1.0
+
+// Block Chords
+1.0 C4,E4,G4
+2.0 D4,F4,A4 95
+3.0 C4,E4,G4 _ 2.0
+
+@TRACK 2 Solo_Flute
+@CHANNEL 2
+@PROGRAM 73
+@DEFAULT_VEL 90
+@RULE LEGATO=TRUE
+
+1.0 C5
+1.5 D5
+2.0 E5
+3.0 C5 _ 2.0
+`,
+  drums: `@LMP 1.0
+@BPM 120
+@TRACK 1 Drums
+@CHANNEL 10
+@DEFAULT_VEL 90
+@DEFAULT_DUR 0.25
+
+1.0 36,42
+1.25 42
+1.5 36,42
+1.75 42
+2.0 36,38,42
+2.25 42
+2.5 36,42
+2.75 42
+`,
+} as const;

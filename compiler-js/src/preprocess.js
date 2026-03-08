@@ -50,7 +50,7 @@ export function preprocess(lmpText) {
     if (tokens.length === 0) continue;
 
     const type = classify(tokens);
-    result.push({ type, tokens });
+    result.push({ type, tokens, sourceLine: i + 1 });
   }
 
   return result;

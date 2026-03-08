@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-[#0f1419] text-slate-100 min-h-screen font-sans antialiased;
+}
+
+.cm-editor {
+  @apply h-full text-sm font-mono;
+}
+.cm-scroller {
+  @apply font-mono;
+}
+
+/* Tippy tooltip overrides for dark theme */
+.tippy-box[data-theme~='translucent'] {
+  @apply text-slate-100 text-sm;
+}
+.tippy-content {
+  @apply font-mono;
+}

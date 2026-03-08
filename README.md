@@ -37,7 +37,7 @@ When tasking LLMs with music generation or analysis, standard data formats fail 
 
 * [`specs/LMP v1 - Spec.md`](./specs/LMP%20v1%20-%20Spec.md) — The definitive standard for the syntax, lexical formatting, and parsing rules of LMP v1.
 * [`compiler-js/`](./compiler-js/) — JavaScript compiler (LMP text ↔ MIDI). Run `bun install` and `bun run build` from that folder.
-* [`testground-web/`](./testground-web/) — Web playground with piano roll, examples, and decompile. Run `bun run build:web` from `compiler-js/` to copy the library, then open or serve `testground-web/`.
+* [`playground-web/`](./playground-web/) — Web playground with piano roll, examples, and decompile. Run `bun run build:web` from `compiler-js/` to copy the library, then open or serve `playground-web/`.
 
 ---
 *Built for the future of AI-driven music production.*

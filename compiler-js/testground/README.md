@@ -29,13 +29,13 @@ bun run lmp song.lmp --loose
 
 ## Browser Playground
 
-**testground-web** — Full website with piano roll visualization, examples, and download. Located at repo root `testground-web/`. From `compiler-js/`:
+**playground-web** — Full website with piano roll visualization, examples, and download. Located at repo root `playground-web/`. From `compiler-js/`:
 
 ```bash
 bun run build:web
 ```
 
-Then open `testground-web/index.html` or serve the folder. GitHub Pages compatible.
+Then open `playground-web/index.html` or serve the folder. GitHub Pages compatible.
 
 **testground.html** — Lightweight single-file playground. Open in browser (double-click or `file://`). On first load, click **Load LMP library** and select `dist/lmp-core.v1.iife.min.js` (cached in localStorage). Features: live LMP → MIDI preview, drag-and-drop `.mid` to decompile.
 

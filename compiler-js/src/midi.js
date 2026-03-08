@@ -1,10 +1,16 @@
 /**
  * LMP Pass 4: Event list + state → MIDI buffer.
+ * midi-writer-js uses 128 ticks per beat; we use 480 internally. Scale when writing.
  */
 import MidiWriter from 'midi-writer-js';
 import { beatToTicks } from './utils.js';
 
 const DEFAULT_BPM = 120;
+const MIDI_WRITER_PPQN = 128;
+
+function toWriterTicks(ticks, ppqn) {
+  return Math.round((ticks * MIDI_WRITER_PPQN) / ppqn);
+}
 
 function semitonesToBend(semitones, pbrange) {
   const r = pbrange || 2;
@@ -66,10 +72,10 @@ export function eventsToMidi(events, state) {
     }
     let lastTick = 0;
     for (const ev of withTicks) {
-      const delta = ev.tick - lastTick;
+      const delta = toWriterTicks(ev.tick - lastTick, ppqn);
 
       if (ev.type === 'tempo') {
-        track.setTempo(ev.bpm ?? bpm, ev.tick);
+        track.setTempo(ev.bpm ?? bpm, toWriterTicks(ev.tick, ppqn));
         lastTick = ev.tick;
         continue;
       }
@@ -111,10 +117,10 @@ export function eventsToMidi(events, state) {
         track.addEvent(
           new MidiWriter.NoteEvent({
             pitch: ev.midi,
-            duration: `T${durationTicks}`,
+            duration: `T${toWriterTicks(durationTicks, ppqn)}`,
             velocity,
             channel: ch,
-            startTick,
+            startTick: toWriterTicks(startTick, ppqn),
           })
         );
         lastTick = ev.tick;

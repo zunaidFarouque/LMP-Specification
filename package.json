@@ -5,7 +5,7 @@
   "description": "Lean Musical Protocol — specification, compiler, and web playground",
   "scripts": {
     "build": "cd compiler-js && bun run build",
-    "build:web": "cd compiler-js && bun run build:web",
+    "build:web": "cd compiler-js && bun run build:web && cd ../playground-web && bun run build",
     "test": "cd compiler-js && bun test"
   }
 }
