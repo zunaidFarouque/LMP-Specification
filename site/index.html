@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lean Musical Protocol (LMP)</title>
+  <link rel="icon" type="image/svg+xml" href="/LMP-Specification/playground/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #0f1419; --fg: #e2e8f0; --muted: #94a3b8; --accent: #f59e0b; --card: #1e293b; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; }
+    .container { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem; }
+    h1 { font-size: 2.25rem; font-weight: 700; margin: 0 0 0.5rem; }
+    .tagline { color: var(--muted); font-size: 1.125rem; margin-bottom: 2.5rem; }
+    h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.75rem; color: var(--accent); }
+    p { margin: 0 0 1rem; }
+    ul { margin: 0 0 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.25rem; }
+    .nav { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 2.5rem 0; }
+    .nav a { display: inline-block; padding: 0.5rem 1rem; background: var(--card); color: var(--fg); text-decoration: none; border-radius: 8px; font-weight: 500; transition: background 0.2s; }
+    .nav a:hover { background: #334155; }
+    .nav a.primary { background: var(--accent); color: #1e293b; }
+    .nav a.primary:hover { background: #fbbf24; }
+    footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--card); color: var(--muted); font-size: 0.875rem; }
+    a { color: var(--accent); }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Lean Musical Protocol (LMP)</h1>
+    <p class="tagline">An ultra-lean, token-efficient text-to-MIDI music sequencing protocol engineered for Large Language Models and autonomous agent workflows.</p>
+
+    <nav class="nav">
+      <a href="/LMP-Specification/specification/" class="primary">Specification</a>
+      <a href="/LMP-Specification/llm/">LLM Guides</a>
+      <a href="/LMP-Specification/playground/">Playground</a>
+    </nav>
+
+    <h2>What is LMP?</h2>
+    <p>The <strong>Lean Musical Protocol (LMP)</strong> is a stateful, Space-Separated Value (SSV) grid format designed to act as the perfect intermediary language between AI models and binary MIDI data.</p>
+    <p>Unlike traditional music notation or standard MIDI files—which are illegible or mathematically confusing to modern Byte-Pair Encoding (BPE) tokenizers—LMP is built from the ground up for <strong>bidirectional LLM interaction</strong>. It allows AI models to "read" existing MIDI files, understand their musical context, and "write" new, mathematically precise compositions without context window bloat.</p>
+
+    <h2>The Bidirectional Pipeline</h2>
+    <ol>
+      <li><strong>MIDI → LMP → AI:</strong> An LMP parser converts binary .mid files into compressed LMP text. LLMs can read, analyze, and understand melodies, rhythms, or multitrack arrangements using minimal tokens.</li>
+      <li><strong>AI → LMP → MIDI:</strong> The LLM generates or modifies music by writing LMP syntax. The parser compiles this deterministic text into a standard, playable .mid file.</li>
+    </ol>
+
+    <h2>Why LMP?</h2>
+    <p>When tasking LLMs with music generation or analysis, standard data formats fail:</p>
+    <ul>
+      <li><strong>JSON/XML:</strong> Massive token bloat from structural repetition.</li>
+      <li><strong>CSV:</strong> Commas disrupt BPE tokenization and degrade mathematical reasoning.</li>
+      <li><strong>Standard MIDI (Delta-Time):</strong> LLMs struggle with cumulative arithmetic, causing rhythmic drift.</li>
+    </ul>
+    <p><strong>The LMP Solution:</strong></p>
+    <ul>
+      <li><strong>BPE-Optimized Whitespace:</strong> SSV grid compresses contiguous whitespace.</li>
+      <li><strong>Absolute Floating-Point Grid:</strong> Beat placements (e.g. 1.0, 2.5) eliminate delta-time arithmetic errors.</li>
+      <li><strong>Stateful DRY Architecture:</strong> Cascading fallbacks and track defaults reduce redundancy.</li>
+    </ul>
+
+    <h2>Use Cases</h2>
+    <ul>
+      <li><strong>Autonomous Agent Workflows:</strong> Analyze audio/MIDI, rewrite arrangements, output new files.</li>
+      <li><strong>Algorithmic Composition:</strong> Rapidly prototype multi-track sequences, legato, or custom drum maps (e.g. Tabla bols).</li>
+      <li><strong>Dataset Generation:</strong> Compress MIDI libraries into efficient LMP text for fine-tuning LLMs.</li>
+    </ul>
+
+    <nav class="nav">
+      <a href="/LMP-Specification/specification/" class="primary">Read the Specification</a>
+      <a href="/LMP-Specification/playground/">Try the Playground</a>
+    </nav>
+
+    <footer>Built for the future of AI-driven music production.</footer>
+  </div>
+</body>
+</html>

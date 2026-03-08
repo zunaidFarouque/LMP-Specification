@@ -7,6 +7,10 @@
   "scripts": {
     "build": "cd compiler-js && bun run build",
     "build:web": "cd compiler-js && bun run build:web && cd ../playground-web && bun run build",
+    "build:site": "bun run scripts/build-site.js",
     "test": "cd compiler-js && bun test"
+  },
+  "devDependencies": {
+    "marked": "^17.0.4"
   }
 }
