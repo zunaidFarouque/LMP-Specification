@@ -1,0 +1,46 @@
+# ============ Dependencies ============
+node_modules/
+
+# ============ Build outputs ============
+dist/
+playground-web/dist/
+# compiler-js/dist/ — keep tracked for GitHub (lmp-core package access)
+
+# Vite cache (also under node_modules, but explicit for clarity)
+.vite/
+
+# ============ Environment & secrets ============
+.env
+.env.local
+.env.*.local
+*.env
+
+# ============ OS & editor ============
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ============ Logs & temp ============
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.temp/
+tmp/
+temp/
+
+# ============ IDE / Editor ============
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ============ Test & coverage ============
+coverage/
+.nyc_output/
+*.lcov
+
+# ============ TypeScript ============
+*.tsbuildinfo
