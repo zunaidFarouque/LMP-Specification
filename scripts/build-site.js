@@ -111,8 +111,10 @@ async function main() {
 
   const llmIndexHtml = `
     <h1>LLM Guides</h1>
-    <p>AI-optimized teaching files for different musical contexts:</p>
+    <p>These guides are written for AI assistants and large language models. They explain how to read, write, and reason about LMP (Lean Musical Protocol) in plain language, with examples and constraints tailored for model consumption.</p>
+    <p>Use them as system or context material when building tools that generate or interpret LMP. Each guide focuses on a different musical domain:</p>
     <ul>${llmLinks.map((l) => `<li>${l}</li>`).join('')}</ul>
+    <p>For the full technical specification, see the <a href="${BASE}/specification/">LMP v1 Specification</a>.</p>
   `;
   writeFileSync(
     join(llmOutDir, 'index.html'),
@@ -121,7 +123,7 @@ async function main() {
 
   console.log('Copying site root files...');
   cpSync(join(siteDir, 'index.html'), join(distDir, 'index.html'));
-  cpSync(join(siteDir, 'compile.html'), join(distDir, 'compile.html'));
+  cpSync(join(siteDir, 'api.html'), join(distDir, 'api.html'));
 
   console.log('Done. Output:', distDir);
 }

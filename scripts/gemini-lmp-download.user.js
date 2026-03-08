@@ -12,8 +12,8 @@
 (function () {
   "use strict";
 
-  const COMPILE_PAGE_URL =
-    "https://zunaidfarouque.github.io/LMP-Specification/compile.html";
+  const API_PAGE_URL =
+    "https://zunaidfarouque.github.io/LMP-Specification/api.html";
   const LMP_HEADER_REGEX = /@LMP\s+[\d.]+/i;
   const TRACK1_REGEX = /@TRACK\s+1\s+(\S+)/;
   const LINES_TO_CHECK = 10;
@@ -52,34 +52,28 @@
     return `${name}_${date}_${time}.mid`;
   }
 
-  function openCompileWindow(lmpText, filename) {
+  function base64Lmp(lmpText) {
+    return btoa(unescape(encodeURIComponent(lmpText)));
+  }
+
+  function openApiPage(lmpText, filename) {
+    const params = new URLSearchParams();
+    params.set("dir", "lmp2midi");
+    params.set("lmp", base64Lmp(lmpText));
+    params.set("filename", filename);
+    params.set("loose", "1");
+    params.set("close", "1");
+    const url = API_PAGE_URL + "#" + params.toString();
     const w = 420,
       h = 180;
     const left = (screen.width - w) / 2;
     const top = (screen.height - h) / 2;
     const features =
       "width=" + w + ",height=" + h + ",left=" + left + ",top=" + top + ",menubar=no,toolbar=no,location=no,status=no";
-    const win = window.open(COMPILE_PAGE_URL, "lmp_compile", features);
+    const win = window.open(url, "lmp_compile", features);
     if (!win) {
-      GM_openInTab(COMPILE_PAGE_URL, { active: true, insert: true });
-      return;
+      GM_openInTab(url, { active: true, insert: true });
     }
-    const send = () =>
-      win.postMessage(
-        { type: "lmp-compile", lmpText, filename },
-        "https://zunaidfarouque.github.io"
-      );
-    const onReady = (e) => {
-      if (e.origin === "https://zunaidfarouque.github.io" && e.data?.type === "lmp-ready") {
-        window.removeEventListener("message", onReady);
-        send();
-      }
-    };
-    window.addEventListener("message", onReady);
-    setTimeout(() => {
-      window.removeEventListener("message", onReady);
-      send();
-    }, 3000);
   }
 
   async function handleDownload() {
@@ -90,7 +84,7 @@
     }
     try {
       const filename = getFilename(text);
-      openCompileWindow(text, filename);
+      openApiPage(text, filename);
     } catch (err) {
       alert("Compile error: " + (err.message || String(err)));
     }
