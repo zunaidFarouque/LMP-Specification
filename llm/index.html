@@ -38,9 +38,19 @@
     <div class="content">
     <h1>LLM Guides</h1>
     <p>These guides are written for AI assistants and large language models. They explain how to read, write, and reason about LMP (Lean Musical Protocol) in plain language, with examples and constraints tailored for model consumption.</p>
-    <p>Use them as system or context material when building tools that generate or interpret LMP. Each guide focuses on a different musical domain:</p>
-    <ul><li><a href="/LMP-Specification/llm/general.html">General</a></li><li><a href="/LMP-Specification/llm/melodic.html">Melodic</a></li><li><a href="/LMP-Specification/llm/percussive.html">Percussive</a></li><li><a href="/LMP-Specification/llm/tabla.html">Tabla</a></li></ul>
-    <p>For the full technical specification, see the <a href="/LMP-Specification/specification/">LMP v1 Specification</a>.</p>
+    <p>Use them as system or context material when building tools that generate or interpret LMP.</p>
+    <h2>Core guides</h2>
+    <ul><li><a href="/LMP-Specification/llm/general.html">General</a> — Core LMP concepts, syntax, and conventions for any use case. Covers headers, tracks, events, and the protocol basics.</li><li><a href="/LMP-Specification/llm/melodic.html">Melodic</a> — Optimized for pitched, melodic instruments. Covers GM melodic patches, note names (SPN), velocity, duration, and typical melodic sequencing.</li><li><a href="/LMP-Specification/llm/percussive.html">Percussive</a> — Optimized for drums. Covers basic GM percussion: Bass Drum, Snare, Toms, Cymbals, Ride bells, Hi-hat, and related articulations.</li></ul>
+    
+    <h2>Custom Drummap Examples</h2>
+    <h3>Indian Tabla</h3>
+    <p>An adaptation of LMP optimized for Indian Tabla. The guide uses custom drummaps; the drummap files used to create and interpret Tabla LMP are available in the repository and linked below.</p>
+    <ul>
+      <li><a href="/LMP-Specification/llm/tabla.html">LMP-AI-Tabla guide</a> — Read the Tabla-specific LMP guide.</li>
+      <li><a href="https://github.com/zunaidFarouque/LMP-Specification/raw/main/specs/ai/Custom%20Drummap%20Examples/Indian%20Tablas/Tablas%202.0%20-%20Drummap%20Summary.tsv">Tablas 2.0 - Drummap Summary.tsv</a> — Drummap summary (TSV).</li>
+      <li><a href="https://github.com/zunaidFarouque/LMP-Specification/raw/main/specs/ai/Custom%20Drummap%20Examples/Indian%20Tablas/Tablas%202.0%20-%20FINAL.drm">Tablas 2.0 - FINAL.drm</a> — Drummap definition (DRM).</li>
+    </ul>
+    <p style="margin-top:2rem">For the full technical specification, see the <a href="/LMP-Specification/specification/">LMP v1 Specification</a>.</p>
   </div>
   </div>
 </body>
