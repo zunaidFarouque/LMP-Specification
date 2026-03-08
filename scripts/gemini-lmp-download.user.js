@@ -1,18 +1,19 @@
 // ==UserScript==
 // @name         Gemini LMP to MIDI Download
 // @namespace    https://github.com/zunaidFarouque/LMP-Specification
-// @version      1.0.6
+// @version      1.0.8
 // @description  Detect LMP content on Gemini, compile to MIDI and download
 // @match        https://gemini.google.com/*
-// @connect      raw.githubusercontent.com
-// @grant        GM_xmlhttpRequest
+// @connect      zunaidfarouque.github.io
+// @connect      cdn.jsdelivr.net
+// @grant        GM_openInTab
 // ==/UserScript==
 
 (function () {
   "use strict";
 
-  const LMP_CDN =
-    "https://raw.githubusercontent.com/zunaidFarouque/LMP-Specification/refs/heads/main/compiler-js/dist/lmp-core.v1.iife.min.js";
+  const COMPILE_PAGE_URL =
+    "https://zunaidfarouque.github.io/LMP-Specification/compile.html";
   const LMP_HEADER_REGEX = /@LMP\s+[\d.]+/i;
   const TRACK1_REGEX = /@TRACK\s+1\s+(\S+)/;
   const LINES_TO_CHECK = 10;
@@ -51,54 +52,34 @@
     return `${name}_${date}_${time}.mid`;
   }
 
-  let compilerScript = null;
-
-  function fetchCompiler() {
-    return new Promise((resolve, reject) => {
-      if (compilerScript) return resolve(compilerScript);
-      GM_xmlhttpRequest({
-        method: "GET",
-        url: LMP_CDN,
-        onload: (r) => {
-          if (r.status >= 200 && r.status < 300) {
-            compilerScript = r.responseText;
-            resolve(compilerScript);
-          } else {
-            reject(new Error("Failed to load LMP compiler"));
-          }
-        },
-        onerror: () => reject(new Error("Failed to load LMP compiler")),
-      });
-    });
-  }
-
-  function b64EncodeUnicode(str) {
-    return btoa(
-      encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, c) =>
-        String.fromCharCode(parseInt(c, 16))
-      )
-    );
-  }
-
-  function openCompileTab(scriptContent, lmpText, filename) {
-    const compilerEscaped = scriptContent.replace(/<\/script>/gi, "<\\/script>");
-    const lmpB64 = b64EncodeUnicode(lmpText);
-    const fnEscaped = filename.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-    const html =
-      "<!DOCTYPE html><html><head><meta charset=utf-8><script>" +
-      compilerEscaped +
-      "</script></head><body><script>" +
-      'var lmpB64="' +
-      lmpB64.replace(/"/g, '\\"') +
-      '";var fn="' +
-      fnEscaped +
-      '";' +
-      "try{var t=decodeURIComponent(atob(lmpB64).split('').map(function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)}).join(''));" +
-      "var r=LMP.compile(t,{loose:!0});var m=r.midi||r;" +
-      "var b=new Blob([m],{type:'audio/midi'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=fn;a.click();URL.revokeObjectURL(a.href);" +
-      "if(window.opener){window.opener.focus()}setTimeout(window.close,500)}catch(e){document.body.textContent='Error: '+e.message}</script></body></html>";
-    const dataUrl = "data:text/html;charset=utf-8," + encodeURIComponent(html);
-    window.open(dataUrl, "_blank", "noopener=0");
+  function openCompileWindow(lmpText, filename) {
+    const w = 420,
+      h = 180;
+    const left = (screen.width - w) / 2;
+    const top = (screen.height - h) / 2;
+    const features =
+      "width=" + w + ",height=" + h + ",left=" + left + ",top=" + top + ",menubar=no,toolbar=no,location=no,status=no";
+    const win = window.open(COMPILE_PAGE_URL, "lmp_compile", features);
+    if (!win) {
+      GM_openInTab(COMPILE_PAGE_URL, { active: true, insert: true });
+      return;
+    }
+    const send = () =>
+      win.postMessage(
+        { type: "lmp-compile", lmpText, filename },
+        "https://zunaidfarouque.github.io"
+      );
+    const onReady = (e) => {
+      if (e.origin === "https://zunaidfarouque.github.io" && e.data?.type === "lmp-ready") {
+        window.removeEventListener("message", onReady);
+        send();
+      }
+    };
+    window.addEventListener("message", onReady);
+    setTimeout(() => {
+      window.removeEventListener("message", onReady);
+      send();
+    }, 3000);
   }
 
   async function handleDownload() {
@@ -108,9 +89,8 @@
       return;
     }
     try {
-      const scriptContent = await fetchCompiler();
       const filename = getFilename(text);
-      openCompileTab(scriptContent, text, filename);
+      openCompileWindow(text, filename);
     } catch (err) {
       alert("Compile error: " + (err.message || String(err)));
     }
