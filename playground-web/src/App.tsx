@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Header } from './components/Header';
 import { EditorPanel } from './components/EditorPanel';
 import { PreviewPanel } from './components/PreviewPanel';
+import { ResizableSplit } from './components/ResizableSplit';
 import { LibraryLoader } from './components/LibraryLoader';
 import { useLmpCore } from './hooks/useLmpCore';
 import { EXAMPLES } from './constants/examples';
@@ -14,6 +15,7 @@ function App() {
   const [status, setStatus] = useState('');
   const [statusError, setStatusError] = useState(false);
   const [drumMap, setDrumMap] = useState<{ noteToName: Map<number, string>; displayOrder: number[] } | null>(null);
+  const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
 
   const handleCompile = useCallback(
     (text: string) => {
@@ -90,20 +92,29 @@ function App() {
         canDownload={!!midi}
       />
       <main className="flex-1 flex flex-col lg:flex-row min-h-0">
-        <EditorPanel
-          value={lmpText}
-          onChange={(v) => setLmpText(v)}
-          onCompile={handleCompile}
-          status={status}
-          statusError={statusError}
-        />
-        <PreviewPanel
-          midi={midi}
-          sourceMap={sourceMap}
-          drumMap={drumMap}
-          onDrumMapChange={setDrumMap}
-          onDecompile={handleDecompile}
-          parseMidi={parseMidi}
+        <ResizableSplit
+          left={
+            <EditorPanel
+              value={lmpText}
+              onChange={(v) => setLmpText(v)}
+              onCompile={handleCompile}
+              status={status}
+              statusError={statusError}
+              highlightedLine={highlightedLine}
+            />
+          }
+          right={
+            <PreviewPanel
+              midi={midi}
+              sourceMap={sourceMap}
+              drumMap={drumMap}
+              onDrumMapChange={setDrumMap}
+              onDecompile={handleDecompile}
+              parseMidi={parseMidi}
+              onNoteHover={setHighlightedLine}
+              lmpText={lmpText}
+            />
+          }
         />
       </main>
     </div>

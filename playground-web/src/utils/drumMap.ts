@@ -78,3 +78,30 @@ export function getDefaultDrumMap(opts?: { short?: boolean }): DrumMap {
   const noteToName = new Map(Object.entries(src).map(([n, name]) => [parseInt(n, 10), name]));
   return { noteToName, displayOrder: getDefaultOrder() };
 }
+
+/** Parse @MAP definitions from LMP source. Returns a DrumMap or null if no @MAP found. */
+export function parseLmpMap(lmpText: string): DrumMap | null {
+  const re = /@MAP\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(\d+)/gi;
+  const entries: { note: number; name: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(lmpText)) !== null) {
+    const name = m[1];
+    const note = parseInt(m[2], 10);
+    if (note >= 0 && note <= 127) entries.push({ note, name });
+  }
+  if (entries.length === 0) return null;
+
+  const base = getDefaultDrumMap({ short: true });
+  const noteToName = new Map(base.noteToName);
+  const mapOrder: number[] = [];
+  for (const { note, name } of entries) {
+    noteToName.set(note, name);
+    mapOrder.push(note);
+  }
+  const defaultOrder = getDefaultOrder();
+  const displayOrder = [
+    ...mapOrder,
+    ...defaultOrder.filter((n) => !mapOrder.includes(n)),
+  ];
+  return { noteToName, displayOrder };
+}

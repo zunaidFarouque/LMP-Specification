@@ -1,6 +1,49 @@
 import { useEffect, useRef } from 'react';
+import { StateEffect, StateField } from '@codemirror/state';
 import { EditorView, basicSetup } from 'codemirror';
+import { Decoration, ViewPlugin } from '@codemirror/view';
+import { syntaxHighlighting } from '@codemirror/language';
 import { useDebounce } from '../hooks/useDebounce';
+import { lmpLanguage, lmpHighlight } from '../codemirror';
+
+const highlightLineEffect = StateEffect.define<number | null>();
+const highlightLineField = StateField.define<number | null>({
+  create: () => null,
+  update: (val, tr) => {
+    for (const e of tr.effects) if (e.is(highlightLineEffect)) return e.value;
+    return val;
+  },
+});
+
+const highlightLinePlugin = ViewPlugin.fromClass(
+  class {
+    decorations: import('@codemirror/view').DecorationSet;
+    constructor(readonly view: EditorView) {
+      this.decorations = this.buildDeco();
+    }
+    update(update: import('@codemirror/view').ViewUpdate) {
+      if (update.state.field(highlightLineField) !== update.startState.field(highlightLineField)) {
+        this.decorations = this.buildDeco();
+      }
+    }
+    buildDeco() {
+      const line = this.view.state.field(highlightLineField);
+      if (line == null || line < 1) return Decoration.none;
+      const doc = this.view.state.doc;
+      if (line > doc.lines) return Decoration.none;
+      const { from } = doc.line(line);
+      return Decoration.set([
+        Decoration.line({ class: 'cm-piano-roll-highlight' }).range(from),
+      ]);
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+
+const highlightLineExtension = [
+  highlightLineField,
+  highlightLinePlugin,
+];
 
 type Props = {
   value: string;
@@ -8,9 +51,10 @@ type Props = {
   onCompile: (v: string) => void;
   status: string;
   statusError: boolean;
+  highlightedLine?: number | null;
 };
 
-export function EditorPanel({ value, onChange, onCompile, status, statusError }: Props) {
+export function EditorPanel({ value, onChange, onCompile, status, statusError, highlightedLine }: Props) {
   const debouncedValue = useDebounce(value, 200);
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -25,6 +69,9 @@ export function EditorPanel({ value, onChange, onCompile, status, statusError }:
       doc: value,
       extensions: [
         basicSetup,
+        lmpLanguage,
+        syntaxHighlighting(lmpHighlight),
+        highlightLineExtension,
         EditorView.updateListener.of((v) => {
           if (v.docChanged) {
             onChange(v.state.doc.toString());
@@ -49,8 +96,15 @@ export function EditorPanel({ value, onChange, onCompile, status, statusError }:
     }
   }, [value]);
 
+  useEffect(() => {
+    const view = viewRef.current;
+    if (view) {
+      view.dispatch({ effects: highlightLineEffect.of(highlightedLine ?? null) });
+    }
+  }, [highlightedLine]);
+
   return (
-    <section className="flex flex-col min-h-[300px] lg:min-h-0 lg:w-1/2 border-b lg:border-b-0 lg:border-r border-slate-800">
+    <section className="flex flex-col min-h-[300px] lg:min-h-0 w-full border-b lg:border-b-0 lg:border-r border-slate-800">
       <div className="flex items-center justify-between px-4 py-2 border-b border-slate-800 bg-slate-900/50">
         <label className="text-sm font-medium text-slate-400">LMP Source</label>
       </div>

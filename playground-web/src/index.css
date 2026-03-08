@@ -20,3 +20,8 @@ body {
 .tippy-content {
   @apply font-mono;
 }
+
+/* Piano roll note hover → editor line highlight */
+.cm-piano-roll-highlight {
+  background-color: rgba(245, 158, 11, 0.2);
+}
