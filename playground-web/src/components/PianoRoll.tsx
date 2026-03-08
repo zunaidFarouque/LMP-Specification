@@ -4,7 +4,6 @@ import { getDrumName } from '../constants/gmDrumMap';
 import {
   zoomHorizontal,
   zoomVertical,
-  panHorizontal,
   resetViewport,
   type PianoRollViewport,
 } from '../utils/pianoRollViewport';
