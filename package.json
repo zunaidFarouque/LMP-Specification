@@ -2,6 +2,7 @@
   "name": "lmp-specification",
   "version": "1.0.0",
   "private": true,
+  "workspaces": ["compiler-js", "playground-web"],
   "description": "Lean Musical Protocol — specification, compiler, and web playground",
   "scripts": {
     "build": "cd compiler-js && bun run build",
