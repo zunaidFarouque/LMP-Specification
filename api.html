@@ -3,16 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LMP API — Compile & Decompile</title>
+  <title>LMP API Guide</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <style>
     :root { --bg: #0f1419; --fg: #e2e8f0; --muted: #94a3b8; --accent: #f59e0b; --card: #1e293b; --err: #ef4444; }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; padding: 2rem 1.5rem; }
-    .container { max-width: 640px; margin: 0 auto; }
+    .container { max-width: 720px; margin: 0 auto; }
     h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
-    .tagline { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.2rem; margin: 2rem 0 0.75rem; color: var(--accent); }
+    h3 { font-size: 1.05rem; margin: 1.5rem 0 0.5rem; }
+    p { margin: 0 0 0.75rem; }
     a { color: var(--accent); }
     a:hover { text-decoration: underline; }
     .back { display: inline-block; margin-bottom: 1rem; }
@@ -32,15 +34,61 @@
     .tabs button.active { background: var(--accent); color: #1e293b; }
     .panel { display: none; }
     .panel.active { display: block; }
+    pre, code { font-family: 'JetBrains Mono', monospace; font-size: 0.9em; background: var(--card); padding: 0.2em 0.4em; border-radius: 4px; }
+    pre { margin: 0.75rem 0; padding: 1rem; overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--card); padding: 0.4rem 0.6rem; text-align: left; }
+    th { background: var(--card); color: var(--accent); }
   </style>
 </head>
 <body>
   <div class="container">
     <a href="/LMP-Specification/" class="back">← Home</a>
-    <h1>LMP API</h1>
-    <p class="tagline">Compile LMP → MIDI or decompile MIDI → LMP. All processing runs in your browser.</p>
+    <h1>LMP API Guide</h1>
+
+    <p>This page describes how to use the LMP compile/decompile API. The API has no server: <strong>all compilation runs in your browser</strong> using JavaScript. There is no backend to call; the site is static and the conversion happens on your machine.</p>
+
+    <h2>How it works</h2>
+    <p>The API is a <strong>plug-and-play URL</strong>. You open a minimal page with your data and arguments in the URL (in the hash fragment). That page loads the LMP compiler in the browser, runs the conversion, triggers a file download, and can close automatically. Scripts, bookmarklets, or other apps can open this URL programmatically (e.g. from Tampermonkey or a link).</p>
+
+    <h2>Main API endpoint</h2>
+    <p>The conversion is done by a minimal subpage that shows no text on success—only a download (and optional auto-close). That page is:</p>
+    <p><a href="/LMP-Specification/api/run.html">api/run.html</a></p>
+    <p>Open it with hash parameters (see below). With valid parameters it will compile or decompile, start the download, and if <code>close=1</code> is set it will close the window. With invalid or missing parameters it displays only a JSON error.</p>
+
+    <h2>Parameters</h2>
+    <p>Pass parameters in the URL hash as <code>key=value</code> pairs separated by <code>&amp;</code>. Values should be encoded (e.g. <code>encodeURIComponent</code> for filename). LMP text and MIDI binary must be base64-encoded.</p>
+    <table>
+      <thead>
+        <tr><th>Parameter</th><th>Direction</th><th>Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>dir</code></td><td>both</td><td><code>lmp2midi</code> or <code>midi2lmp</code></td></tr>
+        <tr><td><code>lmp</code></td><td>lmp2midi</td><td>Base64-encoded UTF-8 LMP text</td></tr>
+        <tr><td><code>midi</code></td><td>midi2lmp</td><td>Base64-encoded MIDI binary</td></tr>
+        <tr><td><code>filename</code></td><td>both</td><td>Download filename (optional)</td></tr>
+        <tr><td><code>loose</code></td><td>lmp2midi</td><td><code>1</code> = use loose mode</td></tr>
+        <tr><td><code>preferSpn</code></td><td>midi2lmp</td><td><code>0</code> or <code>1</code> (default 1)</td></tr>
+        <tr><td><code>precision</code></td><td>midi2lmp</td><td>Beat decimal places (default 3)</td></tr>
+        <tr><td><code>close</code></td><td>both</td><td><code>1</code> = close window after download</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Example</h2>
+    <p>To compile LMP to MIDI and download with auto-close, open:</p>
+    <pre>https://zunaidfarouque.github.io/LMP-Specification/api/run.html#dir=lmp2midi&amp;lmp=<var>&lt;base64&gt;</var>&amp;filename=out.mid&amp;loose=1&amp;close=1</pre>
+    <p>Replace <var>&lt;base64&gt;</var> with your LMP text encoded as base64 (UTF-8). In JavaScript you can use: <code>btoa(unescape(encodeURIComponent(lmpText)))</code>.</p>
+
+    <h2>Errors and warnings</h2>
+    <p>If the runner hits an error (e.g. invalid base64 or compile failure), it shows <strong>only</strong> a JSON object in the page, e.g. <code>{"error": "..."}</code>. If loose mode reports warnings, it may show <code>{"warnings": ["..."]}</code>. There is no other text or UI on the runner page.</p>
+
+    <h2>Live compilation</h2>
+    <p>For interactive editing and live compilation, use the <a href="/LMP-Specification/playground/">Playground</a>.</p>
+
+    <h2>Try it</h2>
+    <p>Use the form below to compile or decompile in this page (no redirect). For scripted or bookmarklet use, open <a href="/LMP-Specification/api/run.html">api/run.html</a> with the hash parameters above.</p>
     <div id="msg" role="status" aria-live="polite"></div>
-    <div id="formArea" style="display:none">
+    <div id="formArea">
       <div class="tabs">
         <button type="button" id="tabL2M" class="active">LMP → MIDI</button>
         <button type="button" id="tabM2L">MIDI → LMP</button>
@@ -79,39 +127,6 @@
   </div>
   <script src="https://cdn.jsdelivr.net/gh/zunaidFarouque/LMP-Specification@main/compiler-js/dist/lmp-core.v1.iife.min.js" onload="init()"></script>
   <script>
-    function parseHash() {
-      var h = location.hash.slice(1);
-      if (!h) return null;
-      var out = {};
-      h.split('&').forEach(function(pair) {
-        var i = pair.indexOf('=');
-        if (i === -1) return;
-        var k = decodeURIComponent(pair.slice(0, i).replace(/\+/g, ' '));
-        var v = decodeURIComponent(pair.slice(i + 1));
-        out[k] = v;
-      });
-      return out;
-    }
-
-    function base64ToUtf8(b64) {
-      try {
-        return decodeURIComponent(escape(atob(b64)));
-      } catch (e) {
-        throw new Error('Invalid base64 or encoding for LMP text');
-      }
-    }
-
-    function base64ToBytes(b64) {
-      var bin = atob(b64);
-      var bytes = new Uint8Array(bin.length);
-      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      return bytes;
-    }
-
-    function utf8ToBase64(str) {
-      return btoa(unescape(encodeURIComponent(str)));
-    }
-
     function setMsg(text, isError) {
       var el = document.getElementById('msg');
       el.textContent = text;
@@ -126,55 +141,7 @@
       URL.revokeObjectURL(a.href);
     }
 
-    function runFromHash(params) {
-      var dir = (params.dir || '').toLowerCase();
-      var closeAfter = params.close === '1' || params.close === 'true';
-      var filename = params.filename || '';
-
-      if (dir === 'lmp2midi' && params.lmp != null) {
-        var lmpText = base64ToUtf8(params.lmp);
-        var loose = params.loose === '1' || params.loose === 'true';
-        var r = window.LMP.compile(lmpText, { loose: loose });
-        var midi = r.midi || r;
-        var blob = new Blob([midi], { type: 'audio/midi' });
-        downloadBlob(blob, filename || 'output.mid');
-        setMsg('Download started.');
-        if (closeAfter && (window.opener || window.history.length <= 1)) setTimeout(window.close, 300);
-        return true;
-      }
-
-      if (dir === 'midi2lmp' && params.midi != null) {
-        var bytes = base64ToBytes(params.midi);
-        var preferSpn = params.preferSpn !== '0' && params.preferSpn !== 'false';
-        var precision = parseInt(params.precision, 10);
-        if (isNaN(precision) || precision < 1) precision = 3;
-        var lmpStr = window.LMP.decompile(bytes, { preferSpn: preferSpn, precision: precision });
-        var blob = new Blob([lmpStr], { type: 'text/plain' });
-        downloadBlob(blob, filename || 'output.lmp');
-        setMsg('Download started.');
-        if (closeAfter && (window.opener || window.history.length <= 1)) setTimeout(window.close, 300);
-        return true;
-      }
-
-      return false;
-    }
-
     function init() {
-      var params = parseHash();
-      if (params && Object.keys(params).length > 0) {
-        try {
-          if (runFromHash(params)) {
-            document.getElementById('formArea').style.display = 'none';
-            return;
-          }
-        } catch (e) {
-          setMsg('Error: ' + (e && e.message ? e.message : String(e)), true);
-        }
-      }
-
-      document.getElementById('formArea').style.display = 'block';
-      setMsg('');
-
       document.getElementById('tabL2M').onclick = function() {
         document.getElementById('tabL2M').classList.add('active');
         document.getElementById('tabM2L').classList.remove('active');
