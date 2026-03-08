@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMP AI: General — LMP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f1419;--fg:#e2e8f0;--muted:#94a3b8;--accent:#f59e0b;--card:#1e293b}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;min-height:100vh;padding:2rem 1.5rem}
+    .container{max-width:800px;margin:0 auto}
+    h1{font-size:1.75rem;margin:0 0 1rem}
+    h2{font-size:1.25rem;margin:2rem 0 0.75rem;color:var(--accent)}
+    h3{font-size:1.1rem;margin:1.5rem 0 0.5rem}
+    p{margin:0 0 1rem}
+    ul,ol{margin:0 0 1rem;padding-left:1.5rem}
+    li{margin-bottom:0.25rem}
+    pre,code{font-family:'JetBrains Mono',monospace;font-size:0.9em;background:var(--card);padding:0.2em 0.4em;border-radius:4px}
+    pre{margin:1rem 0;padding:1rem;overflow-x:auto}
+    table{border-collapse:collapse;width:100%;margin:1rem 0}
+    th,td{border:1px solid var(--card);padding:0.5rem 0.75rem;text-align:left}
+    th{background:var(--card);color:var(--accent)}
+    a{color:var(--accent)}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+<nav style="margin-bottom:2rem;display:flex;gap:0.75rem;flex-wrap:wrap">
+  <a href="/LMP-Specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Home</a>
+  <a href="/LMP-Specification/specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Specification</a>
+  <a href="/LMP-Specification/llm/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">LLM Guides</a>
+  <a href="/LMP-Specification/playground/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px">Playground</a>
+</nav>
+    <div class="content"><h1>LMP — Lean Musical Protocol (AI Teaching: General)</h1>
+<h2>1. Adapter Preamble</h2>
+<p>You retain your full identity, expertise, and creative voice. This document adds a new output format: LMP. Use it when the user asks for MIDI output.</p>
+<p>Musical decisions (what to play, phrasing, style) stay in your domain. LMP syntax (how to encode it) is the taught capability. When outputting MIDI, use LMP syntax as follows.</p>
+<h2>2. Output Context</h2>
+<p>LMP is a text format that compiles to binary MIDI. The user&#39;s environment parses your LMP output and turns it into playable MIDI in the browser. Output only valid LMP; no prose mixed in.</p>
+<h2>3. Musical Concept → LMP Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Musical Idea</th>
+<th>LMP Construct</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Downbeat, measure</td>
+<td>Beat 0.0, 1.0, 2.0... (1 beat = 1 quarter note; 4/4 measure = 4 beats; 7/8 measure = 3.5 beats)</td>
+</tr>
+<tr>
+<td>Single note at beat 1</td>
+<td><code>1.0 C4</code></td>
+</tr>
+<tr>
+<td>Chord at beat 1</td>
+<td><code>1.0 C4,E4,G4</code></td>
+</tr>
+<tr>
+<td>Legato phrase</td>
+<td><code>@RULE LEGATO=TRUE</code>, omit duration for notes before the next</td>
+</tr>
+<tr>
+<td>Rest / silence</td>
+<td><code>R</code> at beat</td>
+</tr>
+<tr>
+<td>Pitch bend up 1 semitone</td>
+<td><code>X.X PB 1.0</code></td>
+</tr>
+<tr>
+<td>Return to center</td>
+<td><code>X.X PB 0.0</code></td>
+</tr>
+<tr>
+<td>Sustain pedal down</td>
+<td><code>X.X CC 64 127</code></td>
+</tr>
+<tr>
+<td>Kick on 1 and 3</td>
+<td><code>1.0 36</code>, <code>3.0 36</code></td>
+</tr>
+<tr>
+<td>Snare on 2 and 4</td>
+<td><code>2.0 38</code>, <code>4.0 38</code></td>
+</tr>
+<tr>
+<td>Eighth-note hi-hats</td>
+<td><code>1.0-5.0:1/2 42</code></td>
+</tr>
+<tr>
+<td>Skip beats 2 and 4</td>
+<td><code>| R 2.0 4.0</code></td>
+</tr>
+<tr>
+<td>Accent beats 1 and 3</td>
+<td><code>| V [1.0 3.0] 110</code></td>
+</tr>
+<tr>
+<td>Ghost note</td>
+<td>Explicit lower velocity (e.g. 45)</td>
+</tr>
+<tr>
+<td>Custom drum name</td>
+<td><code>@MAP kick=36</code> then <code>1.0 kick</code></td>
+</tr>
+</tbody></table>
+<h2>4. Lexical Rules</h2>
+<ul>
+<li><strong>Space-separated columns:</strong> Data is space-delimited. One or more spaces or tabs work the same.</li>
+<li><strong>Comments:</strong> Use <code>//</code> at the end of any line. Everything after <code>//</code> is ignored.</li>
+<li><strong>Blank line:</strong> A blank line enters &quot;trailing&quot; mode. Lines that do not start with <code>@</code>, a digit, <code>+</code>, or <code>|</code> are ignored until an LMP-matching line appears again.</li>
+</ul>
+<h2>5. Event Row Format</h2>
+<p>Each event: <code>[Beat] [Pitch] [Velocity] [Length]</code></p>
+<ul>
+<li><strong>Beat:</strong> Absolute position (0.0, 1.0, 2.5). 1.0 = one quarter note. Max 3 decimal places.</li>
+<li><strong>Pitch:</strong> Note (SPN or GM integer or @MAP name) or reserved token (R, CC, PB, TEMPO, TS).</li>
+<li><strong>Velocity:</strong> 1–127. Optional for notes; uses fallback when omitted.</li>
+<li><strong>Length:</strong> Duration in beats. Optional for notes; uses fallback when omitted.</li>
+</ul>
+<p><strong>Omitting data:</strong> Use <code>_</code> in Column 3 when you want fallback velocity but explicit length: <code>1.0 C4 _ 2.0</code>.</p>
+<h2>6. Pitch Column</h2>
+<p><strong>Resolution order:</strong> (1) Reserved tokens R, CC, PB, TEMPO, TS — always first. (2) Scientific Pitch Notation (C4, F#3). (3) General MIDI integer (36, 42). (4) @MAP name. Use alphanumeric names for @MAP (e.g. kick, snare). Reserved tokens cannot be @MAP names.</p>
+<ul>
+<li><strong>Tonal:</strong> SPN. C4 = 60.</li>
+<li><strong>Percussive:</strong> GM integers (36 = kick, 38 = snare, 42 = closed hi-hat, 46 = open hi-hat).</li>
+<li><strong>R (Rest):</strong> Silence marker. No velocity or length. Use in Legato tracks for rests.</li>
+<li><strong>CC:</strong> Column 3 = controller number, Column 4 = value. Both required. Example: <code>1.0 CC 64 127</code> (sustain).</li>
+<li><strong>PB:</strong> Column 3 = bend in semitones. Use <code>PB 0.0</code> to return to center before subsequent notes.</li>
+<li><strong>TEMPO:</strong> <code>X.X TEMPO 120.0</code></li>
+<li><strong>TS:</strong> <code>X.X TS 7 8</code> (time signature change)</li>
+</ul>
+<p><strong>Same-beat ordering:</strong> On the same beat, output CC first, then PB, then notes.</p>
+<h2>7. Headers</h2>
+<p>Declare before events. Each track needs <code>@TRACK</code> and <code>@CHANNEL</code>.</p>
+<ul>
+<li><code>@LMP 1.0</code> — Version (include at top)</li>
+<li><code>@BPM [float]</code> — Tempo</li>
+<li><code>@TIMESIG [int]/[int]</code> — e.g. <code>@TIMESIG 4/4</code> or <code>@TIMESIG 7/8</code></li>
+<li><code>@TRACK [int] [Name]</code> — Name required (alphanumeric, underscores)</li>
+<li><code>@CHANNEL [int]</code> — 1–16. Channel 10 for drums.</li>
+<li><code>@PROGRAM [int]</code> — MIDI patch (0–127). Optional.</li>
+<li><code>@DEFAULT_VEL [int]</code> — Fallback velocity</li>
+<li><code>@DEFAULT_DUR [float]</code> — Fallback duration</li>
+<li><code>@PBRANGE [int]</code> — Pitch bend range in semitones (default 2)</li>
+<li><code>@MAP [Name]=[Integer]</code> — Custom pitch name. Name: alphanumeric, underscores, no leading digit.</li>
+<li><code>@RULE [Pitch] VEL=[min]-[max]</code> — Randomize velocity when omitted</li>
+<li><code>@RULE [Pitch] DUR=[float]</code> — Fixed duration for pitch</li>
+<li><code>@RULE LEGATO=TRUE</code> — Auto-calculate duration to next note (monophonic)</li>
+</ul>
+<p><code>@CHANNEL</code> does not persist across tracks. Declare it for each new track.</p>
+<h2>8. Advanced Features</h2>
+<p><strong>Chordal polyphony:</strong> Comma-separated pitches, no spaces: <code>1.0 C4,E4,G4 85 1.0</code></p>
+<p><strong>Same-beat continuation (<code>+</code>):</strong> Inherit beat from previous line. Use only after a regular note (single beat), not after repeating syntax.</p>
+<pre><code>1.0 C5 _ 4.0
++ E5,G5 _ 2.0
+</code></pre>
+<p><strong>Repeating notes:</strong> <code>[StartBeat]-[EndBeat]:[interval]</code> — interval as fraction (1/2, 1/4) or integer only. DO NOT USE DECIMALS for the interval (e.g., :0.5 is invalid). Generates notes from StartBeat up to (but strictly NOT including) EndBeat. To fill a 4-beat measure, your EndBeat must be 5.0. Use <code>|</code> for modifiers; use <code>|</code> only after repeating syntax, not after regular notes.</p>
+<pre><code>1.0-5.0:1/2 42
+| R 2.0 4.0
+| V [1.0 3.0] 110
+</code></pre>
+<p><strong>Modifiers:</strong> <code>| R</code> (skip beats), <code>| V</code> (velocity override), <code>| D</code> (duration override). Uppercase R, V, D.</p>
+<h2>9. Fallback Hierarchy</h2>
+<p><strong>Velocity:</strong> Explicit row → @RULE for pitch → @DEFAULT_VEL → 100</p>
+<p><strong>Duration:</strong> Explicit row → @RULE DUR for pitch → Legato (if active) → @DEFAULT_DUR → 0.25</p>
+<p>For Legato: give the final note of a phrase explicit duration in Column 4.</p>
+<h2>10. Examples</h2>
+<p><strong>Melodic (chords + legato phrase):</strong></p>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 120
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+@PROGRAM 0
+@DEFAULT_VEL 80
+@DEFAULT_DUR 1.0
+
+1.0 C4,E4,G4
+2.0 D4,F4,A4 95
+3.0 C4,E4,G4 _ 2.0
+
+@TRACK 2 Solo_Flute
+@CHANNEL 2
+@PROGRAM 73
+@DEFAULT_VEL 90
+@RULE LEGATO=TRUE
+
+1.0 C5
+1.5 D5
+2.0 E5
+3.0 C5 _ 2.0
+</code></pre>
+<p><strong>Percussive (hi-hat + kick-snare):</strong></p>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 110
+@TRACK 1 Drums
+@CHANNEL 10
+@DEFAULT_DUR 0.25
+@DEFAULT_VEL 100
+@RULE 42 VEL=70-85
+
+1.0-5.0:1/2 42
+| R 2.0 4.0
+| V [1.0 3.0] 110
+
+1.0 36 110
+2.0 38
+3.0 36 110
+4.0 38
+</code></pre>
+<h2>11. Output Checklist</h2>
+<ul>
+<li>Begin with <code>@LMP 1.0</code></li>
+<li>Declare <code>@TRACK</code> and <code>@CHANNEL</code> before any events</li>
+<li>Use absolute beat numbers (0.0, 1.0, 2.5)</li>
+<li>Use <code>//</code> for inline comments when helpful</li>
+<li>Omit velocity and duration when defaults apply; use <code>_</code> when omitting velocity but specifying length</li>
+<li>Use <code>PB 0.0</code> before returning to normal pitch after a bend</li>
+<li>Output only valid LMP; no prose mixed in</li>
+</ul>
+</div>
+  </div>
+</body>
+</html>

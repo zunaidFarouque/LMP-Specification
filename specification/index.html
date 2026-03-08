@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMP v1 Specification — LMP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f1419;--fg:#e2e8f0;--muted:#94a3b8;--accent:#f59e0b;--card:#1e293b}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;min-height:100vh;padding:2rem 1.5rem}
+    .container{max-width:800px;margin:0 auto}
+    h1{font-size:1.75rem;margin:0 0 1rem}
+    h2{font-size:1.25rem;margin:2rem 0 0.75rem;color:var(--accent)}
+    h3{font-size:1.1rem;margin:1.5rem 0 0.5rem}
+    p{margin:0 0 1rem}
+    ul,ol{margin:0 0 1rem;padding-left:1.5rem}
+    li{margin-bottom:0.25rem}
+    pre,code{font-family:'JetBrains Mono',monospace;font-size:0.9em;background:var(--card);padding:0.2em 0.4em;border-radius:4px}
+    pre{margin:1rem 0;padding:1rem;overflow-x:auto}
+    table{border-collapse:collapse;width:100%;margin:1rem 0}
+    th,td{border:1px solid var(--card);padding:0.5rem 0.75rem;text-align:left}
+    th{background:var(--card);color:var(--accent)}
+    a{color:var(--accent)}
+    a:hover{text-decoration:underline}
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+<nav style="margin-bottom:2rem;display:flex;gap:0.75rem;flex-wrap:wrap">
+  <a href="/LMP-Specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Home</a>
+  <a href="/LMP-Specification/specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Specification</a>
+  <a href="/LMP-Specification/llm/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">LLM Guides</a>
+  <a href="/LMP-Specification/playground/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px">Playground</a>
+</nav>
+    <div class="content"><h1><strong>Lean Musical Protocol (LMP) v1 Specification</strong></h1>
+<h2><strong>1. Overview and Design Rationale</strong></h2>
+<p>The Lean Musical Protocol (LMP) is an ultra-lean, text-based music sequencing format engineered specifically for Large Language Models (LLMs). Its primary objective is to minimize token consumption and cognitive load while ensuring 100% deterministic compilation into binary MIDI files via a JavaScript parser.</p>
+<p>LMP explicitly rejects verbose formats like JSON and XML, which introduce catastrophic token bloat due to structural repetition. It rejects Comma-Separated Values (CSV) as the primary grid format, since commas in the main data columns disrupt BPE tokenization. Commas are permitted only in constrained contexts (chordal polyphony, modifier argument groups). Instead, LMP employs a strict Space-Separated Value (SSV) grid, exploiting the fact that BPE tokenizers highly compress contiguous whitespace. To eliminate redundancy, LMP utilizes the &quot;Don&#39;t Repeat Yourself&quot; (DRY) principle via a stateful header hierarchy.</p>
+<p>This document serves as the definitive standard for the syntax and parsing rules of LMP v1.</p>
+<h3><strong>Version Declaration</strong></h3>
+<p>The <code>@LMP [version]</code> header (e.g., <code>@LMP 1.0</code>) should appear at the top of an LMP file. It signifies that the file conforms to that version of the specification; the parser applies the rules from that version. This enables version control across LMP tooling. If <code>@LMP</code> is not explicitly stated, the parser MUST use the latest specification version it supports to parse the data.</p>
+<h3><strong>Compiler Modes</strong></h3>
+<p>Implementations MAY support two parsing modes:</p>
+<ul>
+<li><strong>Strict Mode (default):</strong> The parser MUST error and halt on any specification violation. This is the normative behavior; all rules in this document apply strictly.</li>
+<li><strong>Loose Mode (debugging):</strong> When enabled (e.g., via a flag or option), the parser MAY emit warnings instead of errors for recoverable violations and continue generating MIDI. Loose mode is intended for debugging, rapid prototyping, and LLM output inspection. The specification rules remain authoritative; loose mode relaxes enforcement only at runtime.</li>
+</ul>
+<p>In loose mode, the compiler SHOULD emit a human-readable warning for each recoverable violation and apply a safe fallback rather than halting. Examples of recoverable violations and their fallbacks: invalid or incomplete CC rows (missing controller number or value) — warn and skip the row; invalid or incomplete PB rows — warn and skip the row; missing <code>@CHANNEL</code> for a track — assume channel 1 and warn; invalid repeating range (e.g., start ≥ end) — warn and skip the row. Non-recoverable violations (e.g., invalid file structure, orphaned continuations) MAY still error.</p>
+<h2><strong>2. Lexical Syntax &amp; Formatting Rules</strong></h2>
+<h3><strong>2.1 Space-Separated Columns</strong></h3>
+<p>Data for musical events is declared in a strict space-delimited format.</p>
+<ul>
+<li><strong>Whitespace Agnostic:</strong> The parser splits rows using a regular expression for one or more whitespace characters (<code>/\s+/</code>). This means one space, multiple spaces (for visual alignment), or tabs are all treated identically.</li>
+<li><strong>Blank Line:</strong> A blank line is any line that is empty or contains only whitespace.</li>
+<li><strong>Trailing Metadata Rule:</strong> Once a blank line is encountered, the parser enters &quot;trailing&quot; mode. All subsequent lines that do not match LMP syntax (a line starting with <code>@</code>, a digit, <code>+</code>, or <code>|</code>) are ignored. When an LMP-matching line is encountered again, parsing resumes normally. This prevents LLM commentary or explanations after the LMP block from being treated as corrupted data.</li>
+</ul>
+<h3><strong>2.2 Inline Intentions (Comments)</strong></h3>
+<p>Semantic grounding is critical for LLM reasoning. You can add natural language comments to the end of any line using the double forward slash (<code>//</code>).</p>
+<ul>
+<li><strong>Rule:</strong> The parser splits the string at the first instance of <code>//</code>. Everything to the right is completely ignored by the compiler, protecting the mathematical grid from text pollution.</li>
+</ul>
+<h3><strong>2.3 The Columnar Grid (Event Rows)</strong></h3>
+<p>Each musical event is defined on a single line. The columns must appear in this exact order:</p>
+<p><code>[Beat] [Pitch] [Velocity] [Length]</code></p>
+<ol>
+<li><strong>Column 1: Beat (Mandatory)</strong></li>
+</ol>
+<ul>
+<li>An absolute floating-point number representing the timeline position (e.g., <code>0.0</code>, <code>1.0</code>, <code>2.5</code>, <code>3.25</code>). Beat <code>0.0</code> is valid (start of timeline). Negative beat values are invalid.</li>
+<li><em>Crucial Mathematical Rule:</em> <code>1.0</code> ALWAYS represents exactly one Quarter Note (1 standard beat), regardless of the time signature. For example, in a 7/8 time signature, one full measure spans exactly <code>3.5</code> beats. This absolute grid prevents cumulative delta-time arithmetic errors.</li>
+<li><em>Floating-Point Precision Rule:</em> Beat values should be rounded to a maximum of 3 decimal places (e.g., <code>1.333</code> for a triplet). The JavaScript parser must round the final calculated MIDI tick position to the nearest whole integer using standard rounding (round half away from zero, e.g., <code>Math.round</code>) to completely eliminate floating-point drift over long sequences.</li>
+</ul>
+<ol start="2">
+<li><strong>Column 2: Pitch (Mandatory)</strong></li>
+</ol>
+<ul>
+<li><em>Case-Insensitivity:</em> All reserved pitch strings (R, CC, PB, TEMPO, TS) are case-insensitive. The parser must normalize Column 2 to uppercase before evaluation (e.g., <code>tempo</code>, <code>cc</code>, <code>pb</code> are valid).</li>
+<li><em>Pitch Resolution Order:</em> The parser resolves Column 2 in this order: (1) reserved tokens (R, CC, PB, TEMPO, TS) — always take precedence; (2) Scientific Pitch Notation if the string matches the SPN pattern; (3) General MIDI integer if the string is numeric; (4) <code>@MAP</code> name. SPN and GM integers take precedence over map names — e.g., <code>@MAP C4=36</code> has no effect because <code>C4</code> is parsed as SPN first.</li>
+<li><em>Tonal:</em> Scientific Pitch Notation (e.g., <code>C4</code>, <code>F#3</code>). The parser enforces <code>C4 = 60</code></li>
+<li><em>Percussive:</em> General MIDI integers (e.g., <code>36</code>, <code>42</code>).</li>
+<li><em>Custom Map:</em> A string name defined via a drummap header (e.g., <code>dha</code>, <code>kick</code>).</li>
+<li><em>Rest / Silence (R):</em> Use the exact reserved string <code>R</code>. An <code>R</code> event is a <strong>Non-Event Timestamp</strong> — a marker that defines the end of a previous Legato note and the start of a silence period. It generates no MIDI note and requires no velocity or duration. Columns 3 and 4 are safely ignored. The parser advances the timeline; the silence from <code>R</code> to the next event is implicit. Used to explicitly declare silence. (To skip specific beats within a repeating pattern, use the modifier <code>| R</code> — see Section 3.6.)</li>
+<li><em>Control Change (CC):</em> Use the exact reserved string <code>CC</code>. When Pitch is <code>CC</code>, Column 3 becomes the <strong>CC Number</strong> (0-127), and Column 4 becomes the <strong>CC Value</strong> (0-127).<ul>
+<li><em>Same-Beat Ordering Rule:</em> When multiple event types occur on the exact same beat <em>within a track</em>, the parser MUST emit them in this order: (1) all CC events first (in line order), (2) all PB events (in line order), (3) all note events. This ensures state changes (e.g., Sustain CC) affect simultaneous notes. If multiple CC or PB events share a beat, they are processed in the order they appear in the file.</li>
+<li><em>Rule Override:</em> When Pitch is <code>CC</code>, Columns 3 and 4 are mathematically <strong>Mandatory</strong>. You cannot omit them or use fallbacks.</li>
+<li><em>Discrete Events:</em> LMP v1 does not support CC/PB curves or interpolation. Each CC row is a discrete, single-point event. To create a fade or ramp, program multiple discrete rows (e.g., every 1/8 beat).</li>
+<li><em>Example:</em> <code>1.0 CC 64 127</code> (Sustain Pedal Down at Beat 1.0).</li>
+</ul>
+</li>
+<li><em>Pitch Bend (PB):</em> Use the exact reserved string <code>PB</code>. When Pitch is <code>PB</code>, Column 3 becomes the <strong>Bend Value</strong> in continuous semitones (e.g., <code>1.5</code> for up a step-and-a-half, <code>-2.0</code> for down a whole step, <code>0.0</code> for center/reset).<ul>
+<li><em>VST Match Warning:</em> The parser assumes the target MIDI instrument&#39;s internal pitch-bend sensitivity matches the <code>@PBRANGE</code> value. If the VST/synth uses a different range, the user must either change the instrument setting or adjust <code>@PBRANGE</code> accordingly. Mismatch will produce incorrect pitch bend.</li>
+<li><em>Clamping Rule:</em> If the requested semitone bend mathematically exceeds the current track&#39;s <code>@PBRANGE</code>, the parser must hard-clamp the value to the maximum (or minimum) allowable limit to prevent binary data corruption.</li>
+<li><em>Column 4 Safety Rule:</em> Column 4 (Length) is not required for PB events. If data is accidentally provided in Column 4, the parser will safely ignore it.</li>
+<li><em>Discrete Events:</em> LMP v1 does not support CC/PB curves or interpolation. Each PB row is a discrete, single-point event. To create a slide or gradual bend, program multiple discrete rows (e.g., every 1/8 beat).</li>
+<li><em>Hanging State Warning:</em> Pitch Bend is a channel-wide state change. It does NOT automatically reset to zero after a note ends. The LLM MUST explicitly program a return to center (e.g., <code>X.X PB 0.0</code>) or all subsequent notes on that track will remain transposed/detuned.</li>
+<li><em>Auto-Reset Rule:</em> The parser MUST automatically inject a <code>PB 0.0</code> message at the very end of any track that contains at least one PB event, unless the last event in that track is already a <code>PB 0.0</code>. This ensures the instrument returns to center tuning when playback stops or the track ends.</li>
+<li><em>Track Isolation:</em> Pitch Bend state and <code>@PBRANGE</code> do NOT persist across tracks. When a new <code>@TRACK</code> is declared, the parser MUST emit <code>PB 0.0</code> at the start of that track and reset <code>@PBRANGE</code> to <code>2</code> unless explicitly set. This prevents accidental detuning when switching between instruments.</li>
+</ul>
+</li>
+<li><em>Tempo Change (TEMPO):</em> Use the reserved string <code>TEMPO</code>.<ul>
+<li>Column 3: The new BPM (float).</li>
+<li>Column 4: Safely ignored.</li>
+<li><em>Example:</em> <code>16.0 TEMPO 145.0</code> (Accelerates to 145 BPM at beat 16.0).</li>
+<li><em>Track Placement:</em> TEMPO and TS are global timeline meta-events. The parser MUST emit them to the first track. At least one <code>@TRACK</code> must exist before any TEMPO or TS events; if TEMPO/TS appear before the first track, the parser MUST error.</li>
+</ul>
+</li>
+<li><em>Time Signature Change (TS):</em> Use the reserved string <code>TS</code>.<ul>
+<li>Column 3: The Numerator (integer).</li>
+<li>Column 4: The Denominator (integer).</li>
+<li><em>Example:</em> <code>32.0 TS 7 8</code> (Shifts to 7/8 time at beat 32.0).</li>
+<li><em>Track Placement:</em> Same as TEMPO.</li>
+</ul>
+</li>
+</ul>
+<ol start="3">
+<li><strong>Column 3: Velocity (Optional for Notes)</strong></li>
+</ol>
+<ul>
+<li>An integer between <code>1</code> and <code>127</code>. If omitted for a standard note, the parser calculates it from the cascading fallback hierarchy.</li>
+</ul>
+<ol start="4">
+<li><strong>Column 4: Length / Duration (Optional for Notes)</strong></li>
+</ol>
+<ul>
+<li>A floating-point duration (e.g., <code>1.0</code> for a quarter note, <code>0.5</code> for an eighth note). If omitted for a standard note, falls back to the track default.</li>
+</ul>
+<h2><strong>3. Advanced Syntactic Features</strong></h2>
+<h3><strong>3.1 Omitting Explicit Data (<code>_</code>)</strong></h3>
+<p>If you wish to provide data for Column 4 (Length) but want to leave Column 3 (Velocity) empty to trigger the fallback logic, you <strong>must</strong> use an underscore (<code>_</code>) as a placeholder in Column 3.</p>
+<ul>
+<li><em>Logic Rule:</em> The <code>_</code> character instructs the parser to treat Column 3 exactly as if it were left blank, immediately triggering the Cascading Fallback Hierarchy (Section 4.1). In the case of polyphony, <code>_</code> triggers independent rule evaluation for each note in the chord.</li>
+<li><em>Strict Constraint:</em> The <code>_</code> placeholder is strictly for Note events. It is invalid and will cause a compilation error if used in place of mandatory data in a <code>CC</code> row.</li>
+<li><em>Example:</em> <code>1.0 C4 _ 2.0</code> (Plays C4 at Beat 1.0, calculates velocity from fallbacks, overrides length to 2.0).</li>
+</ul>
+<h3><strong>3.2 Repeating Note Syntax</strong></h3>
+<p>To rapidly generate repetitive elements without consuming tokens, use the Repeating Note syntax in the <strong>Beat</strong> column:</p>
+<ul>
+<li><strong>Syntax:</strong> <code>[StartBeat]-[EndBeat]:[numerator/denominator]</code> or <code>[StartBeat]-[EndBeat]:[integer]</code></li>
+<li><strong>Interval (Fraction Only):</strong> The interval must be expressed as a rational fraction <code>numerator/denominator</code> in beats, or as an integer for whole beats. The colon (<code>:</code>) separates the range from the interval. Examples: <code>:1/2</code> (eighth note), <code>:1/3</code> (triplet), <code>:1/4</code> (sixteenth), <code>:3/8</code>, <code>:1</code> (whole beat). Fractions only — no floats. The parser generates beats using exact rational arithmetic; no epsilon or floating-point comparison is required.</li>
+<li><strong>Mathematical Constraints:</strong> To prevent parser infinite loops, <code>[EndBeat]</code> must be strictly greater than <code>[StartBeat]</code>, and the interval fraction must be positive. If these conditions are not met, the parser ignores the row.</li>
+<li><strong>Pitch Events Only:</strong> The repeating syntax is strictly reserved for standard notes (Tonal, Percussive, or Custom Maps). It is invalid and will be safely ignored if used with Rest (<code>R</code>), Control Change (<code>CC</code>), or Pitch Bend (<code>PB</code>) events to prevent data stream clogging.</li>
+<li><strong>Logic:</strong> The parser generates notes starting at <code>[StartBeat]</code>, adding the interval repeatedly, stopping strictly <em>before</em> reaching <code>[EndBeat]</code> (exclusive).</li>
+<li><strong>Data Mapping:</strong> Any explicit data provided in Column 3 (Velocity) or Column 4 (Length) will be applied uniformly to every single note generated by that loop.</li>
+<li><strong>Modifiers:</strong> Repeating notes support modifier continuations (<code>|</code>) for per-beat overrides (e.g., skip beats, velocity or duration overrides). See Section 3.6.</li>
+<li><em>Example:</em> <code>1.0-5.0:1/2 42 110 0.25</code> (Generates note 42 at beats 1.0, 1.5, 2.0... up to 4.5. Every generated note is forced to velocity 110 and duration 0.25).</li>
+</ul>
+<h3><strong>3.3 Chordal Polyphony</strong></h3>
+<p>Multiple pitches played at the exact same onset time must be written on a single line, separated by commas (without spaces).</p>
+<ul>
+<li><em>Example:</em> <code>1.0 C4,E4,G4 85 1.0</code> (A C-Major triad overriding velocity and length).</li>
+<li><strong>Velocity Calculation for Polyphony:</strong> If velocity is omitted (using <code>_</code> or leaving the column blank), the parser calculates the velocity for <em>each note</em> independently based on its specific <code>@RULE</code> in the header. Each pitch in a chord is evaluated against its own <code>@RULE</code> (e.g., <code>@RULE C4 VEL=70-80</code> and <code>@RULE E4 VEL=60-70</code> apply independently in <code>C4,E4,G4</code>). If an explicit velocity is provided in the row, that single value overrides all header rules and applies to <em>every</em> note in that specific chord group.</li>
+<li><strong>MIDI Output Note:</strong> For chordal polyphony (single-line chords) and multi-line same-beat polyphony, the parser should sort simultaneous notes by pitch (low to high) before writing MIDI. This improves compatibility with older hardware that can choke on out-of-order simultaneous notes.</li>
+</ul>
+<h3><strong>3.4 Multi-Line Polyphony (Voice Leading)</strong></h3>
+<p>While Section 3.3 handles block chords with identical durations, complex voice leading often requires simultaneous notes to hold for different lengths. To achieve this, declare the events on the exact same beat across multiple sequential lines. The parser adds notes exactly as stated; this is not a Legato block, so durations are literal.</p>
+<p>Example:</p>
+<pre><code class="language-LMP">1.0 C2 _ 4.0 // Bass holds for 4 beats
+1.0 C4 _ 1.0 // Melody strikes at same time, holds for 1 beat
+</code></pre>
+<ul>
+<li><strong>Alternative Syntax:</strong> Use same-beat continuation (<code>+</code>) to inherit the beat and avoid repetition. See Section 3.5.</li>
+<li><strong>Line Breaks Optional:</strong> A blank line between chord blocks is not required. Sequential blocks may run back-to-back.</li>
+</ul>
+<pre><code class="language-LMP">1.0 C5 _ 4.0
++ E5,G5 _ 2.0
+</code></pre>
+<h3><strong>3.5 Same-Beat Continuation (<code>+</code>)</strong></h3>
+<p>A line that starts with optional whitespace followed by <code>+</code> continues the previous event line and inherits its beat. This provides a compact alternative to repeating the beat on every line for multi-line polyphony.</p>
+<ul>
+<li><strong>Format:</strong> <code>+ [Pitch] [Velocity] [Length]</code> — equivalent to columns 2, 3, and 4 of a standard event row. The beat is inherited from the base line.</li>
+<li><strong>Scope:</strong> All <code>+</code> lines inherit the beat from the first non-continuation line in the block. Multiple continuations may follow; each inherits from the original base line.</li>
+<li><strong>Continuation Ends:</strong> When a valid new LMP header (<code>@</code>), a valid new event line (starting with a number), or a <strong>blank line</strong> is encountered. Blank lines reset the active base line; use comment lines (<code>//</code>) for visual spacing within a continuation block.</li>
+<li><strong>Strict Constraint:</strong> Same-beat continuation applies only when the base line is a <strong>regular note</strong> (single beat). It is invalid after a repeating note; use modifier continuation (<code>|</code>) for repeating notes instead.</li>
+<li><strong>Orphaned Continuation:</strong> A <code>+</code> line with no preceding base line (e.g., at file start or immediately after a blank line, or after a header) is invalid — the parser MUST error.</li>
+<li><em>Example:</em><pre><code class="language-LMP">1.0 C5 _ 4.0
++ E5,G5 _ 2.0
++ G4 _ 2.0
+</code></pre>
+</li>
+</ul>
+<h3><strong>3.6 Repeating Note Modifiers (<code>|</code>)</strong></h3>
+<p>A line that starts with optional whitespace followed by <code>|</code> continues a repeating note and applies modifiers that override or filter the generated notes on a per-beat basis.</p>
+<ul>
+<li><strong>Format:</strong> <code>| [R|V|D] [arguments]</code></li>
+<li><strong>Case-Sensitivity:</strong> Modifier types R, V, and D are <strong>case-sensitive</strong> — only uppercase <code>R</code>, <code>V</code>, <code>D</code> are valid.</li>
+<li><strong>Scope:</strong> Modifiers apply only to the immediately preceding repeating note. Continuation ends when a valid new header (<code>@</code>), event line (starting with a number), or <strong>blank line</strong> is encountered. Use comment lines (<code>//</code>) for visual spacing within a modifier block.</li>
+<li><strong>Orphaned Modifier:</strong> A <code>|</code> line with no preceding repeating note (e.g., at file start, after a blank line, or after a regular note) is invalid — the parser MUST error.</li>
+<li><strong>Modifier R (Rest):</strong> Skips the specified beats. Arguments: space-separated beat positions. The parser omits any generated note whose onset matches an excluded beat within a tolerance of <strong>0.01</strong> beats (e.g., <code>| R 1.333</code> matches a triplet-generated beat at 1.333...). Beats that do not exist in the generated note set (e.g., <code>| R 7.0</code> when the loop only generates 1.0–5.0) are ignored with a warning — this helps detect AI hallucination; the user may need to improve prompting.<ul>
+<li><em>Example:</em> <code>| R 2.0 4.0</code></li>
+</ul>
+</li>
+<li><strong>Modifier V (Velocity):</strong> Overrides velocity at specific beats. Arguments: comma-separated groups of <code>[beat-spec] value</code>. Beat-spec syntax:<ul>
+<li><strong>Discrete list:</strong> <code>[beat1 beat2 ...]</code> — space-separated inside brackets (commas optional). Applies only to the exact beats listed.</li>
+<li><strong>Single beat:</strong> <code>beat value</code> — unbracketed, applies to that one beat.</li>
+<li><strong>Range:</strong> <code>[start-end]</code> — hyphenated inside brackets. Applies to every generated note from <code>start</code> up to (but not including) <code>end</code>, at the loop&#39;s interval.</li>
+<li><em>Overlap Resolution:</em> If multiple groups target the same beat (e.g., <code>| V [1.0 2.0] 80, [2.0 3.0] 90</code>), the <strong>last</strong> group wins. Beat 2.0 would use velocity 90.</li>
+<li><em>Example:</em> <code>| V [3.0 3.5] 80, 4.0 90</code> (beats 3.0 and 3.5 use velocity 80; beat 4.0 uses 90)</li>
+</ul>
+</li>
+<li><strong>Modifier D (Duration):</strong> Overrides duration at specific beats. Same argument structure as V. Overlap resolution: last group wins.<ul>
+<li><em>Example:</em> <code>| D [2.0-4.0] 0.25</code> (all notes from 2.0 up to but not including 4.0 use duration 0.25 — range)</li>
+</ul>
+</li>
+<li><strong>Evaluation Order:</strong> The parser generates the full array of notes first, applies V and D overrides per beat, then purges notes marked by R. Applying R last prevents null-reference errors when both R and V (or D) target the same beat.</li>
+<li><strong>Strict Constraint:</strong> Modifier continuation applies only when the base line is a <strong>repeating note</strong>. It is invalid after a regular note.</li>
+<li><em>Example:</em><pre><code class="language-LMP">1.0-5.0:1/2 42
+| R 2.0 4.0
+| V [3.0 3.5] 80, 4.0 90
+| D [2.0-4.0] 0.25
+</code></pre>
+</li>
+</ul>
+<h2><strong>4. Stateful Headers (Metadata)</strong></h2>
+<p>Headers define the environment and default rules. They are prefixed with @ and must be declared before the events they affect. Note events require at least one <code>@TRACK</code> and <code>@CHANNEL</code> to be declared before any event rows; events appearing before the first track declaration are invalid.</p>
+<ul>
+<li><strong>Global Headers:</strong><ul>
+<li><code>@LMP 1.0</code> - Lean Musical Protocol v1.0.</li>
+<li><code>@BPM [float]</code> - Sets global tempo.</li>
+<li><code>@TIMESIG [int]/[int]</code> - Sets the time signature (e.g., <code>@TIMESIG 7/8</code>). Defaults to 4/4 if omitted.</li>
+<li><code>@PPQN [integer]</code> - Sets the MIDI resolution (pulses per quarter note). Defaults to <code>480</code> if omitted. Used for Legato Gap and tick calculations.</li>
+</ul>
+</li>
+<li><strong>Track Initialization:</strong><ul>
+<li><code>@TRACK [integer] [Name]</code> - Initializes a new track and sets it as active. The <code>[Name]</code> is <strong>mandatory</strong> (for human readability) and must consist entirely of alphanumeric characters and underscores (no spaces). <code>@TRACK 1</code> without a name is invalid.</li>
+<li><code>@CHANNEL [integer]</code> - Sets the MIDI channel (1–16, display convention; channel 10 is reserved for drums). Required for note-playing messages; each new track must declare it. The parser converts to 0–15 for binary MIDI output.</li>
+<li><code>@PROGRAM [integer]</code> - Sets the MIDI patch (0-127). Optional (as in MIDI); add at track declaration if desired.</li>
+<li><code>@PBRANGE [integer]</code> - Sets the maximum Pitch Bend range in semitones for the current track&#39;s parser math (e.g., <code>@PBRANGE 12</code>). Defaults to <code>2</code> if omitted.</li>
+<li><em>State Persistence Rule:</em> Only <code>@DEFAULT_VEL</code>, <code>@DEFAULT_DUR</code>, and <code>@RULE</code> persist when a new <code>@TRACK</code> is declared. <code>@CHANNEL</code> does NOT persist — each new track must declare <code>@CHANNEL</code> right after the track declaration. <code>@PROGRAM</code> does NOT persist and is optional; if used, add it at track declaration time. <code>@PBRANGE</code> and Pitch Bend state do NOT persist; they reset on each new track (see Section 2.3). The first track has no inherited state; it must declare <code>@CHANNEL</code>; velocity and duration fallbacks use hardcoded Global Safety Defaults until overridden.</li>
+<li><em>Mid-Sequence Override:</em> <code>@CHANNEL</code> and <code>@PROGRAM</code> may be repeated anywhere in the sequence. The parser applies headers top-to-bottom; a later <code>@CHANNEL</code> or <code>@PROGRAM</code> overrides the previous value for all subsequent events on that track.</li>
+<li><em>Explicit Inherit:</em> Use <code>@INHERIT [track]</code> to inherit from the specified track, or <code>@INHERIT [track] [header1,header2,...]</code> to inherit only the listed headers. Valid header names: <code>VEL</code>, <code>DUR</code>, <code>CHANNEL</code>, <code>PROGRAM</code>, <code>PBRANGE</code>, <code>RULE</code>. <code>@INHERIT</code> is evaluated first; subsequent headers on the same track override inherited values. Self-inheritance (<code>@INHERIT</code> from the same track) is invalid. Inheriting from a track declared later in the file is invalid. Inheriting from a non-existent track (e.g., <code>@INHERIT 1</code> when no Track 1 exists) is invalid — the parser MUST error in all these cases.</li>
+<li><em>Example:</em> <code>@TRACK 2 Piano_RH @INHERIT 1</code> (inherits all from Track 1 including CHANNEL and PROGRAM — Piano LH and RH share channel). <code>@TRACK 3 Strings @INHERIT 1 VEL,DUR @CHANNEL 2 @PROGRAM 48</code> (inherits only DEFAULT_VEL and DEFAULT_DUR from Track 1, then sets channel and program).</li>
+<li><em>Reset Track:</em> Use <code>@RESET_TRACK</code> to purge all inherited <code>@DEFAULT_VEL</code>, <code>@DEFAULT_DUR</code>, and <code>@RULE</code> for the current track, returning it to Global Safety Defaults. Global <code>@MAP</code> definitions remain unless overwritten. The track must still declare <code>@CHANNEL</code> right after the track declaration; <code>@PROGRAM</code> remains optional. If the track has no inherited values (no <code>@INHERIT</code>), <code>@RESET_TRACK</code> is a no-op.</li>
+</ul>
+</li>
+<li><strong>Track Defaults &amp; Humanization:</strong><ul>
+<li><code>@DEFAULT_VEL [integer]</code> - The fallback velocity if Column 3 is omitted.</li>
+<li><code>@DEFAULT_DUR [float]</code> - The fallback length if Column 4 is omitted.</li>
+<li><code>@RULE [Pitch] VEL=[min]-[max]</code> - Instructs the parser to randomize velocity within a range if omitted (e.g., <code>@RULE 42 VEL=75-90</code>).</li>
+<li><code>@RULE [Pitch] DUR=[float]</code> - Sets a hardcoded default duration for a specific pitch, overriding <code>@DEFAULT_DUR</code> (e.g., <code>@RULE 36 DUR=1.0</code>).</li>
+<li><code>@RULE LEGATO=TRUE</code> - Activates algorithmic legato for <em>monophonic</em> sequences. The parser calculates duration to reach the next chronological event, minus a Legato Gap (see Section 4.1).<ul>
+<li><em>Polyphony Handling:</em> If chordal polyphony (commas or same-beat multi-lines) occurs within a Legato-enabled track, Legato is disabled for that beat and the parser defers to the track default for duration (see Overlap Safety in Section 4.1). For clean legato behavior, prefer separate <code>@TRACK</code> blocks routed to the same <code>@CHANNEL</code> (e.g., Piano Left Hand vs. Right Hand).</li>
+<li><em>Programming Rests:</em> To program a rest (silence) in a Legato track, either (a) use an <code>R</code> event at the desired beat, or (b) give a note an explicit duration in Column 4 that does not reach the next event — e.g., <code>1.0 C5 _ 1.0</code> with the next note at 2.0 creates a 1-beat note followed by 1 beat of silence.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Custom Drum Mapping:</strong><ul>
+<li><code>@MAP [Name]=[Integer]</code> - Allows the LLM to use semantic names instead of arbitrary integers in the Pitch column (e.g., <code>@MAP kick=36</code>).</li>
+<li><em>Strict Lexical Rule:</em> The <code>[Name]</code> string must consist entirely of alphanumeric characters and underscores (<code>A-Z</code>, <code>a-z</code>, <code>0-9</code>, <code>_</code>). Hyphens, spaces, and special characters are strictly prohibited and will cause a parsing failure. <strong>Map names cannot begin with a digit</strong> — this ensures the parser can instantly distinguish a Beat/Range from a Pitch (e.g., <code>@MAP 1=36</code> is invalid).</li>
+<li><em>Global Persistence Rule:</em> <code>@MAP</code> definitions persist globally across all tracks once declared. If a new <code>@MAP</code> uses an existing name, it overwrites the previous integer mapping. You do not need to redeclare maps when initializing a new <code>@TRACK</code>.</li>
+</ul>
+</li>
+</ul>
+<h3><strong>4.1 Cascading Fallback Hierarchy</strong></h3>
+<p>When an event row is evaluated, the parser determines Velocity and Length using this strict priority list:</p>
+<p><strong>For Velocity:</strong></p>
+<ol>
+<li><strong>Explicit Row Data:</strong> Data found directly in Column 3 (e.g., <code>100</code>).</li>
+<li><strong>Note-Specific Rule:</strong> Ranges defined by <code>@RULE</code> for that exact pitch.</li>
+<li><strong>Track Default:</strong> Value defined by <code>@DEFAULT_VEL</code>.</li>
+<li><strong>Global Safety Default:</strong> Hardcoded parser fallback (<code>100</code>) to prevent null crashes.</li>
+</ol>
+<p><strong>For Length (Duration):</strong></p>
+<ol>
+<li><strong>Explicit Row Data:</strong> Data found directly in Column 4 (e.g., <code>0.5</code>). This acts as an absolute override.</li>
+<li><strong>Note-Specific Rule:</strong> Duration defined by <code>@RULE [Pitch] DUR=[float]</code>.</li>
+<li><strong>Legato Auto-Calculation:</strong> If <code>@RULE LEGATO=TRUE</code> is active, the duration is dynamically calculated to reach the next chronological row&#39;s onset, minus a <strong>Legato Gap</strong> to prevent note-off/note-on collisions. (Note: Must be used strictly on monophonic tracks).<ul>
+<li><em>Legato Gap:</em> The parser MUST subtract exactly <strong>2 MIDI ticks</strong> (at the file&#39;s PPQN, default 480) from the calculated duration so the Note Off is sent just before the Note On. Defining the gap in ticks (not beats) ensures a consistent physical separation regardless of tempo and avoids rounding to zero at low PPQN. This prevents VST glitches (silent or popped notes) when notes abut exactly.</li>
+<li><em>Rest Integration:</em> A Rest event (<code>R</code>) acts as a <strong>Non-Event Timestamp</strong> — its Beat is the Hard Stop for the previous Legato note. Legato notes calculate their duration to end exactly where the Rest begins. The <code>R</code> row itself requires no velocity or duration; the silence from <code>R</code> to the next event is implicit.</li>
+<li><em>Overlap Safety:</em> If two notes are scheduled at the same beat (e.g., due to continuation or accidental polyphony), Legato is disabled for that beat and the parser defers to Step 4 for duration.</li>
+<li><em>Final Note Constraint:</em> If there is no subsequent event (Note or Rest) in the track, Legato calculation aborts and defers to Step 4. Therefore, <strong>the final note of any Legato sequence MUST have an explicitly declared duration in Column 4</strong> to prevent it from defaulting to a short, clipped note.</li>
+</ul>
+</li>
+<li><strong>Track Default:</strong> Value defined by <code>@DEFAULT_DUR</code>.</li>
+<li><strong>Global Safety Default:</strong> Hardcoded parser fallback (<code>0.25</code>).</li>
+</ol>
+<h2><strong>5. Comprehensive Use-Case Examples</strong></h2>
+<h3><strong>Example 1: Melodic Orchestration (Chords, Omitting Data, and Legato)</strong></h3>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 120
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+@PROGRAM 0
+@DEFAULT_VEL 80
+@DEFAULT_DUR 1.0
+
+// Block Chords
+1.0 C4,E4,G4 // Uses default velocity (80) and duration (1.0)
+2.0 D4,F4,A4 95 // Overrides velocity to 95, uses default duration (1.0)
+3.0 C4,E4,G4 _ 2.0 // Omits velocity (uses 80 default), overrides duration to 2.0
+
+@TRACK 2 Solo_Flute
+@CHANNEL 2
+@PROGRAM 73
+@DEFAULT_VEL 90
+@RULE LEGATO=TRUE // Parser auto-calculates lengths to overlap notes
+
+1.0 C5 // Phrase start
+1.5 D5 // Rising
+2.0 E5 // Phrase peak
+3.0 C5 _ 2.0 // Resolution (explicit duration required at the end of a phrase)
+</code></pre>
+<h3><strong>Example 2: Basic Drum Kit (Repeating Notes and Randomized Velocity)</strong></h3>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 110
+@TRACK 3 Drum_Kit
+@CHANNEL 10
+@DEFAULT_DUR 0.25
+@DEFAULT_VEL 100
+@RULE 42 VEL=70-85 // Hi-hat humanization
+@RULE 38 VEL=105-115 // Snare humanization
+
+// Continuous Hi-Hats using Repeating Syntax
+// Generates note 42 every 1/2 beat from beat 1.0 up to (but not including) 5.0
+1.0-5.0:1/2 42
+
+// Kick and Snare Pattern
+1.0 36 110 // Strong downbeat kick (Explicit velocity override)
+2.0 38     // Backbeat snare (Uses randomized rule)
+2.75 36 80 // Syncopated quiet kick
+3.0 36 110
+4.0 38     // Backbeat snare
+4.75 38 40 // Ghost note snare (Explicit override bypasses randomization rule)
+</code></pre>
+<h3><strong>Example 3: Custom Instrument Mapping (Tabla Bols)</strong></h3>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 90
+@TRACK 4 Indian_Tabla
+@CHANNEL 10
+@DEFAULT_DUR 0.25
+@DEFAULT_VEL 95
+
+// Custom Map Definitions
+@MAP dha=84
+@MAP ge=36
+@MAP te=70
+@MAP ne=50
+
+// Linear 4-beat Groove
+1.0 dha 110 // Accent
+1.5 ge _ 0.5 // Omit velocity, override length
+2.0 te
+2.5 ge
+3.0 dha 110 // Accent
+3.5 ne
+4.0 te,ge // Simultaneous hits
+</code></pre>
+<h3><strong>Example 4: Same-Beat Continuation (Voice Leading with <code>+</code>)</strong></h3>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 100
+@TRACK 1 Piano
+@CHANNEL 1
+@PROGRAM 0
+@DEFAULT_VEL 85
+@DEFAULT_DUR 1.0
+
+// Bass holds 4 beats; chord voices hold 2 beats — using + to inherit beat
+// Line breaks between blocks are optional; notes are added exactly as stated
+1.0 C2 _ 4.0
++ C4,E4,G4 _ 2.0
+2.0 D2 _ 4.0
++ D4,F4,A4 _ 2.0
+4.0 C2 _ 4.0
++ C4,E4,G4 _ 2.0
+</code></pre>
+<h3><strong>Example 5: Repeating Note Modifiers (Hi-Hat with Skips and Accents)</strong></h3>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 120
+@TRACK 1 Drums
+@CHANNEL 10
+@PROGRAM 0
+@DEFAULT_DUR 0.25
+@DEFAULT_VEL 90
+
+// Hi-hats every 1/2 beat, skip 2.0 and 4.0 (backbeat space), accent 1.0 and 3.0
+1.0-5.0:1/2 42
+| R 2.0 4.0
+| V [1.0 3.0] 110
+
+// Kick pattern
+1.0 36 110
+3.0 36 110
+</code></pre>
+</div>
+  </div>
+</body>
+</html>
