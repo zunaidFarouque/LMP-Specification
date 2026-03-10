@@ -1,0 +1,37 @@
+Original Name,MIDI Note,Acoustic Property,Proposed LMP Name
+Ka 1,24,"Muted, flat bass slap",ka_closed_1
+Ka 2,26,"Muted, flat bass slap (alt variation)",ka_closed_2
+Ka 3,28,"Muted, flat bass slap (alt variation)",ka_closed_3
+Ghen,31,"Open bass, slightly harder attack/overtone",ghen_open
+Ga 1,33,Open resonant bass,ga_open_1
+Ga 2,35,Open resonant bass,ga_open_2
+Ge 1,36,"The standard, deep, stable open bass",ge_open
+Ge 2,38,Open bass with distinct upward pitch bend,ge_slide_up
+Ge 3,40,"Open bass, fast upward pitch bend",ge_slide_fast_up
+Ge 4,43,"Open bass, distinct downward pitch bend",ge_slide_down
+Ge 5,45,"Open bass, starts high and slides higher",ge_slide_high_up
+Ge 6,47,"Open bass, slow downward pitch release",ge_slide_slow_down
+Ge 7,48,"Open bass, slight wobble/complex bend",ge_wobble
+Ne,50,"Razor-sharp edge strike, heavy ringing",ne_kinar
+Tin 1,52,"Bright edge strike, slightly rounder than Ne",tin_kinar
+Tin 2,55,"Warm resonant strike, middle ring",tin_sur
+Tu,57,"Open, warm treble strike",tu_resonant
+Tun,59,"Highly pitched, bell-like center sustain",tun_bell
+Dhing,60,"Aggressive, metallic two-handed accent",dhing_heavy
+Dhe 1,62,"Heavy two-handed accent, slightly rounder",dhe_heavy_1
+Tit,64,"Dead, flat center slap (no resonance)",tit_muted
+Tak,67,"Sharp, dry muted slap",tak_muted
+Re,69,"Fast, dry center stroke (partner to Te)",re_center
+Te 1,71,Core dry center stroke for fast subdivisions,te_center_1
+Ke,72,"Sharp, dry, muted left-hand slap",ke_closed
+Te 2,74,"Dry center stroke (Dayan), alt variation",te_center_2
+Ge 8,76,High/Offbeat bass pitch slide,ge_slide_complex
+Dhet,79,"Sharp, tightly accented combination",dhet_sharp
+Kre,81,Rapid textured flam/flourish,kre_flam
+Graan,83,"Heavy, dragging resonant flam",graan_flam_heavy
+Dha 1,84,"Classic, heavy open combination (Sam)",dha_open_1
+Dhe 2,86,"Heavy combo, slightly rounder treble",dhe_heavy_2
+Dhin,88,"Warm, resonant combination (Open Bass + Middle Treble)",dhin_resonant
+Dha 2,91,"Open combination, slightly brighter/tighter than Dha 1",dha_open_2
+Taraan,93,"Sweeping, resonant melodic flam",taraan_flourish
+Tete,95,"Extremely dry, tight center hit for fast runs",tete_dry
