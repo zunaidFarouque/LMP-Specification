@@ -404,7 +404,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ka 1" wide="true"/>
+         <string name="Name" value="ka_closed_1" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -436,7 +436,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ka 2" wide="true"/>
+         <string name="Name" value="ka_closed_2" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -468,7 +468,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ka 3" wide="true"/>
+         <string name="Name" value="ka_closed_3" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -516,7 +516,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ghen" wide="true"/>
+         <string name="Name" value="ghen_open" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -548,7 +548,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ga 1" wide="true"/>
+         <string name="Name" value="ga_open_1" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -580,7 +580,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ga 2" wide="true"/>
+         <string name="Name" value="ga_open_2" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -596,7 +596,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 1" wide="true"/>
+         <string name="Name" value="ge_open" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -628,7 +628,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 2" wide="true"/>
+         <string name="Name" value="ge_slide_up" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -660,7 +660,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 3" wide="true"/>
+         <string name="Name" value="ge_slide_fast_up" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -708,7 +708,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 4" wide="true"/>
+         <string name="Name" value="ge_slide_down" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -740,7 +740,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 5" wide="true"/>
+         <string name="Name" value="ge_slide_high_up" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -772,7 +772,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 6" wide="true"/>
+         <string name="Name" value="ge_slide_slow_down" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -788,7 +788,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 7" wide="true"/>
+         <string name="Name" value="ge_wobble" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -820,7 +820,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ne" wide="true"/>
+         <string name="Name" value="ne_kinar" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -852,7 +852,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tin 1" wide="true"/>
+         <string name="Name" value="tin_kinar" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -900,7 +900,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tin 2" wide="true"/>
+         <string name="Name" value="tin_sur" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -932,7 +932,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tu" wide="true"/>
+         <string name="Name" value="tu_resonant" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -964,7 +964,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tun" wide="true"/>
+         <string name="Name" value="tun_bell" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -980,7 +980,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dhing" wide="true"/>
+         <string name="Name" value="dhing_heavy" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1012,7 +1012,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dhe 1" wide="true"/>
+         <string name="Name" value="dhe_heavy_1" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1044,7 +1044,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tit" wide="true"/>
+         <string name="Name" value="tit_muted" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1092,7 +1092,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tak" wide="true"/>
+         <string name="Name" value="tak_muted" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1124,7 +1124,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Re" wide="true"/>
+         <string name="Name" value="re_center" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1156,7 +1156,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Te 1" wide="true"/>
+         <string name="Name" value="te_center_1" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1172,7 +1172,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ke" wide="true"/>
+         <string name="Name" value="ke_closed" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1204,7 +1204,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Te 2" wide="true"/>
+         <string name="Name" value="te_center_2" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1236,7 +1236,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Ge 8" wide="true"/>
+         <string name="Name" value="ge_slide_complex" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1284,7 +1284,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dhet" wide="true"/>
+         <string name="Name" value="dhet_sharp" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1316,7 +1316,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Kre" wide="true"/>
+         <string name="Name" value="kre_flam" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1348,7 +1348,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Graan" wide="true"/>
+         <string name="Name" value="graan_flam_heavy" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1364,7 +1364,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dha 1" wide="true"/>
+         <string name="Name" value="dha_open_1" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1396,7 +1396,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dhe 2" wide="true"/>
+         <string name="Name" value="dhe_heavy_2" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1428,7 +1428,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dhin" wide="true"/>
+         <string name="Name" value="dhin_resonant" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1476,7 +1476,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Dha 2" wide="true"/>
+         <string name="Name" value="dha_open_2" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1508,7 +1508,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Taraan" wide="true"/>
+         <string name="Name" value="taraan_flourish" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
@@ -1540,7 +1540,7 @@
          <int name="HeadSymbol" value="0"/>
          <int name="Voice" value="0"/>
          <int name="PortIndex" value="0"/>
-         <string name="Name" value="Tete" wide="true"/>
+         <string name="Name" value="tete_dry" wide="true"/>
          <int name="QuantizeIndex" value="0"/>
          <int name="NoteheadSet" value="0"/>
          <string name="InstrumentEntityID" value=""/>
