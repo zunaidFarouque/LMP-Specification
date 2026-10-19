@@ -17,5 +17,5 @@ LMP acts as an intermediate language between AI models and binary MIDI data. It 
 
 - [LMP Model Context Protocol (MCP) Server](lmp-mcp/README.md): Official stdio MCP server for compile, decompile, and validation inside Claude Desktop and Cursor.
 - [LMP Core Compiler & Decompiler](compiler-js/README.md): Zero-dependency Node.js/browser compiler and decompiler with 136 core unit tests.
-- [LMP Web Playground](playground-web/README.md): Interactive WebAudio playground with canvas piano roll, transport controls, and playhead tracking.
+- [LMP Web Studio](studio-web/README.md): Next-gen interactive web studio with bidirectional visual-to-code synchronization, multi-track mixer, live syntax linter, and AI Musical Friend copilot.
 - [LMP-Bench Benchmark Suite](bench/README.md): Evaluation harness and statistical stress testing suite across 7 musical genres.

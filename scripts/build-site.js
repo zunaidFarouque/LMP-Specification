@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build the full LMP site: playground + static pages (landing, specification, LLM).
- * Output: playground-web/dist/
+ * Build the full LMP site: studio + static pages (landing, specification, LLM).
+ * Output: studio-web/dist/
  */
 import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -11,7 +11,7 @@ import { execSync } from 'child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const siteDir = join(root, 'site');
-const distDir = join(root, 'playground-web', 'dist');
+const distDir = join(root, 'studio-web', 'dist');
 const specsDir = join(root, 'specs');
 const specsAiDir = join(root, 'specs', 'ai');
 
@@ -23,7 +23,7 @@ function nav() {
   <a href="${BASE}/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Home</a>
   <a href="${BASE}/specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Specification</a>
   <a href="${BASE}/llm/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">LLM Guides</a>
-  <a href="${BASE}/playground/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px">Playground</a>
+  <a href="${BASE}/studio/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px">Studio</a>
 </nav>`;
 }
 
@@ -68,10 +68,10 @@ function pageTemplate(title, content) {
 async function main() {
   const { marked } = await import('marked');
 
-  console.log('Building playground...');
+  console.log('Building studio...');
   execSync('bun run build:web', {
     cwd: root,
-    env: { ...process.env, VITE_BASE_PATH: BASE + '/playground/' },
+    env: { ...process.env, VITE_BASE_PATH: BASE + '/studio/' },
     stdio: 'inherit',
   });
 

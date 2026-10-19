@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #0a0d12;
+  color: #e2e8f0;
+}
+
+/* Custom scrollbars for DAW timeline & piano roll */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #0f141d;
+}
+::-webkit-scrollbar-thumb {
+  background: #252f42;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #394763;
+}
+
+/* CodeMirror customizations */
+.cm-editor {
+  height: 100%;
+  font-size: 13px;
+  background-color: #0d1117 !important;
+}
+.cm-content {
+  caret-color: #f59e0b !important;
+}
+.cm-cursor,
+.cm-dropCursor {
+  border-left: 2px solid #f59e0b !important;
+}
+.cm-focused .cm-cursor {
+  border-left-color: #f59e0b !important;
+}
+.cm-selectionBackground,
+.cm-focused .cm-selectionBackground {
+  background-color: rgba(59, 130, 246, 0.3) !important;
+}
+.cm-scroller {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+}
+.cm-gutters {
+  background-color: #0d1117 !important;
+  border-right: 1px solid #1e2638 !important;
+  color: #4b5563 !important;
+}
+.cm-activeLine {
+  background-color: rgba(245, 158, 11, 0.08) !important;
+}
+.cm-activeLineGutter {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+}
+.cm-selected-line-highlight {
+  background-color: rgba(59, 130, 246, 0.18) !important;
+  box-shadow: inset 3px 0 0 #3b82f6 !important;
+  border-left: none !important;
+  margin-left: 0 !important;
+}
+
+.cm-hovered-line-highlight {
+  background-color: rgba(245, 158, 11, 0.14) !important;
+  box-shadow: inset 3px 0 0 #f59e0b !important;
+  border-left: none !important;
+  margin-left: 0 !important;
+}
+
+.cm-hovered-token-highlight {
+  background-color: rgba(245, 158, 11, 0.45) !important;
+  color: #ffffff !important;
+  border-radius: 3px !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.75) !important;
+  padding: 1px 3px !important;
+  font-weight: 700 !important;
+}
+
+/* CodeMirror Linter & Diagnostic Tooltips */
+.cm-lintRange-error {
+  background-image: none !important;
+  border-bottom: 2px wavy #ef4444 !important;
+}
+
+.cm-lintRange-warning {
+  background-image: none !important;
+  border-bottom: 2px wavy #f59e0b !important;
+}
+
+.cm-lint-marker-error {
+  content: "●";
+  color: #ef4444;
+  font-size: 14px;
+}
+
+.cm-tooltip-lint {
+  background-color: #161d2b !important;
+  border: 1px solid #ef4444 !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  color: #fca5a5 !important;
+  font-family: ui-monospace, monospace !important;
+  font-size: 11px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+}
+

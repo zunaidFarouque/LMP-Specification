@@ -2,13 +2,15 @@
   "name": "lmp-specification",
   "version": "2.0.0",
   "private": true,
-  "workspaces": ["compiler-js", "playground-web", "lmp-mcp", "bench"],
-  "description": "Lean Musical Protocol — specification, compiler, and web playground",
+  "workspaces": ["compiler-js", "studio-web", "lmp-mcp", "bench"],
+  "description": "Lean Musical Protocol — specification, compiler, and next-gen studio",
   "scripts": {
     "build": "cd compiler-js && bun run build",
-    "build:web": "cd compiler-js && bun run build:web && cd ../playground-web && bun run build",
+    "build:web": "cd compiler-js && bun run build:web && cd ../studio-web && bun run build",
+    "build:studio": "cd studio-web && bun run build",
+    "dev:studio": "cd studio-web && npm run dev",
     "build:site": "bun run scripts/build-site.js",
-    "test": "cd compiler-js && bun test && cd ../lmp-mcp && bun test && cd ../bench && bun test",
+    "test": "cd compiler-js && bun test && cd ../studio-web && bun test && cd ../lmp-mcp && bun test && cd ../bench && bun test",
     "bench": "cd bench && bun run bench"
   },
   "devDependencies": {

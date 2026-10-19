@@ -3,7 +3,7 @@ node_modules/
 
 # ============ Build outputs ============
 dist/
-playground-web/dist/
+studio-web/dist/
 # compiler-js/dist/ — keep tracked for GitHub (lmp-core package access)
 
 # Vite cache (also under node_modules, but explicit for clarity)

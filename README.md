@@ -92,7 +92,7 @@ Please read the LMP specification at https://r.jina.ai/https://raw.githubusercon
 * [`compiler-js/`](./compiler-js/) — Core JavaScript compiler & decompiler (`lmp-core` v2.0.0). Run `bun test` to execute the 136 core unit tests.
 * [`lmp-mcp/`](./lmp-mcp/) — Official Model Context Protocol server exposing `compile_lmp`, `decompile_midi`, and `validate_lmp`.
 * [`bench/`](./bench/) — `LMP-Bench` evaluation harness and 50-run statistical stress testing suite. Run `npm run bench`.
-* [`playground-web/`](./playground-web/) — Interactive WebAudio playground with canvas piano roll, transport controls, and playhead tracking.
+* [`studio-web/`](./studio-web/) — Next-gen interactive web studio with bidirectional visual-to-code synchronization, multi-track mixer, live syntax linter, and AI Musical Friend copilot.
 * [`tampermonkey/`](./tampermonkey/) — Browser userscript for inline MIDI playback and export on Gemini, ChatGPT, and Claude.
 * [`RELEASE-NOTES-v2.md`](./RELEASE-NOTES-v2.md) — Complete release notes for LMP v2.0.0.
 
