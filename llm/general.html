@@ -125,6 +125,10 @@
 <li><strong>Length:</strong> Duration in beats. Optional for notes; uses fallback when omitted.</li>
 </ul>
 <p><strong>Omitting data:</strong> Use <code>_</code> in Column 3 when you want fallback velocity but explicit length: <code>1.0 C4 _ 2.0</code>.</p>
+<ul>
+<li><strong>CRITICAL Column 3 <code>_</code> Placeholder Rule:</strong> Column 3 is ALWAYS Velocity, and Column 4 is ALWAYS Duration. If you omit velocity while specifying duration, you MUST write <code>_</code> in Column 3: <code>1.0 C4 _ 2.0</code>. NEVER write <code>1.0 C4 2.0</code> (which erroneously interprets <code>2.0</code> as velocity 2, making the note silent).</li>
+<li><strong>CRITICAL Negative Constraint — No Spaces in Chords:</strong> In Column 2 chords, NEVER put spaces after commas. Always write <code>1.0 C4,E4,G4 80 1.0</code>, NEVER <code>1.0 C4, E4, G4 80 1.0</code>. Spaces break column alignment.</li>
+</ul>
 <h2>6. Pitch Column</h2>
 <p><strong>Resolution order:</strong> (1) Reserved tokens R, CC, PB, TEMPO, TS — always first. (2) Scientific Pitch Notation (C4, F#3). (3) General MIDI integer (36, 42). (4) @MAP name. Use alphanumeric names for @MAP (e.g. kick, snare). Reserved tokens cannot be @MAP names.</p>
 <ul>
@@ -132,7 +136,7 @@
 <li><strong>Percussive:</strong> GM integers (36 = kick, 38 = snare, 42 = closed hi-hat, 46 = open hi-hat).</li>
 <li><strong>R (Rest):</strong> Silence marker. No velocity or length. Use in Legato tracks for rests.</li>
 <li><strong>CC:</strong> Column 3 = controller number, Column 4 = value. Both required. Example: <code>1.0 CC 64 127</code> (sustain).</li>
-<li><strong>PB:</strong> Column 3 = bend in semitones. Use <code>PB 0.0</code> to return to center before subsequent notes.</li>
+<li><strong>PB:</strong> Column 3 = bend in semitones. Pitch bends automatically reset to center (0.0) at the end of the note duration, but explicit <code>PB 0.0</code> can also be emitted.</li>
 <li><strong>TEMPO:</strong> <code>X.X TEMPO 120.0</code></li>
 <li><strong>TS:</strong> <code>X.X TS 7 8</code> (time signature change)</li>
 </ul>
@@ -143,6 +147,8 @@
 <li><code>@LMP 1.0</code> — Version (include at top)</li>
 <li><code>@BPM [float]</code> — Tempo</li>
 <li><code>@TIMESIG [int]/[int]</code> — e.g. <code>@TIMESIG 4/4</code> or <code>@TIMESIG 7/8</code></li>
+<li><code>@ORIGIN [0|1]</code> — Timeline start index (default <code>1</code> for 1-based downbeats; <code>0</code> for 0-based DAWs)</li>
+<li><code>@SEED [int]</code> — Deterministic PRNG seed for <code>@RULE VEL</code> humanization</li>
 <li><code>@TRACK [int] [Name]</code> — Name required (alphanumeric, underscores)</li>
 <li><code>@CHANNEL [int]</code> — 1–16. Channel 10 for drums.</li>
 <li><code>@PROGRAM [int]</code> — MIDI patch (0–127). Optional.</li>
@@ -150,13 +156,13 @@
 <li><code>@DEFAULT_DUR [float]</code> — Fallback duration</li>
 <li><code>@PBRANGE [int]</code> — Pitch bend range in semitones (default 2)</li>
 <li><code>@MAP [Name]=[Integer]</code> — Custom pitch name. Name: alphanumeric, underscores, no leading digit.</li>
-<li><code>@RULE [Pitch] VEL=[min]-[max]</code> — Randomize velocity when omitted</li>
+<li><code>@RULE [Pitch] VEL=[min]-[max]</code> — Randomize velocity within range when omitted</li>
 <li><code>@RULE [Pitch] DUR=[float]</code> — Fixed duration for pitch</li>
 <li><code>@RULE LEGATO=TRUE</code> — Auto-calculate duration to next note (monophonic)</li>
 </ul>
 <p><code>@CHANNEL</code> does not persist across tracks. Declare it for each new track.</p>
 <h2>8. Advanced Features</h2>
-<p><strong>Chordal polyphony:</strong> Comma-separated pitches, no spaces: <code>1.0 C4,E4,G4 85 1.0</code></p>
+<p><strong>Chordal polyphony:</strong> Comma-separated pitches with STRICTLY NO SPACES: <code>1.0 C4,E4,G4 85 1.0</code>. Negative constraint: NEVER insert spaces after commas in chords (e.g. <code>C4, E4, G4</code> is forbidden; always format as <code>C4,E4,G4</code>).</p>
 <p><strong>Same-beat continuation (<code>+</code>):</strong> Inherit beat from previous line. Use only after a regular note (single beat), not after repeating syntax.</p>
 <pre><code>1.0 C5 _ 4.0
 + E5,G5 _ 2.0
@@ -214,15 +220,49 @@
 3.0 36 110
 4.0 38
 </code></pre>
+<p><strong>Odd-Meter (7/8 Progressive Groove):</strong>
+Remember: 1 measure of 7/8 = 7 eighth notes = 3.5 quarter-note beats!</p>
+<ul>
+<li>Bar 1 spans beats 1.0 to 4.5</li>
+<li>Bar 2 begins at beat 4.5 and spans to 8.0</li>
+</ul>
+<pre><code class="language-LMP">@LMP 1.0
+@BPM 140
+@TIMESIG 7/8
+@TRACK 1 Drums
+@CHANNEL 10
+@DEFAULT_DUR 0.25
+
+// Measure 1 (beats 1.0 to 4.5, total 3.5 beats)
+1.0 36 120
+1.5 36 110
+2.0 38 125
+2.5 36 110
+3.0 36 120
+3.25 36 115
+
+// Measure 2 (starts at beat 4.5, spans to 8.0)
+4.5 36 120
+5.0 36 110
+5.5 38 125
+6.0 36 110
+6.5 36 120
+6.75 36 115
+</code></pre>
 <h2>11. Output Checklist</h2>
 <ul>
+<li>Wrap code blocks inside ```lmp ... ``` code fence for instant player detection</li>
 <li>Begin with <code>@LMP 1.0</code></li>
-<li>Declare <code>@TRACK</code> and <code>@CHANNEL</code> before any events</li>
-<li>Use absolute beat numbers (0.0, 1.0, 2.5)</li>
+<li>Declare <code>@TRACK [id] [Name]</code> and <code>@CHANNEL [1-16]</code> before any events</li>
+<li>Use absolute beat numbers (0.0, 1.0, 2.5). Beat 1.0 = downbeat in default <code>@ORIGIN 1</code></li>
+<li><strong>Negative constraint:</strong> NEVER put spaces inside chords (write <code>C4,E4,G4</code>, NEVER <code>C4, E4, G4</code>)</li>
+<li><strong>Column 3 placeholder:</strong> Always use <code>_</code> when omitting velocity but specifying duration (<code>1.0 C4 _ 2.0</code>, never <code>1.0 C4 2.0</code>)</li>
+<li><strong>Odd meter math:</strong> In 7/8 time, 1 bar = 3.5 beats (Bar 1: 1.0 to 4.5, Bar 2: 4.5 to 8.0)</li>
+<li>Repeating notes: use fractional intervals (<code>:1/2</code>, <code>:1/4</code>, <code>:1/8</code>), never decimals (<code>:0.5</code> is invalid)</li>
+<li>Remember that loop EndBeat is exclusive (<code>1.0-5.0:1/2</code> fills a 4-beat bar)</li>
 <li>Use <code>//</code> for inline comments when helpful</li>
 <li>Omit velocity and duration when defaults apply; use <code>_</code> when omitting velocity but specifying length</li>
-<li>Use <code>PB 0.0</code> before returning to normal pitch after a bend</li>
-<li>Output only valid LMP; no prose mixed in</li>
+<li>Output only valid LMP; no conversational prose mixed into the code block</li>
 </ul>
 </div>
   </div>

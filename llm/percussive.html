@@ -180,12 +180,14 @@
 <li><code>@LMP 1.0</code> — Version (include at top)</li>
 <li><code>@BPM [float]</code> — Tempo</li>
 <li><code>@TIMESIG [int]/[int]</code> — e.g. <code>@TIMESIG 4/4</code> or <code>@TIMESIG 7/8</code></li>
+<li><code>@ORIGIN [0|1]</code> — Timeline start index (default <code>1</code> for 1-based downbeats; <code>0</code> for 0-based DAWs)</li>
+<li><code>@SEED [int]</code> — Deterministic PRNG seed for <code>@RULE VEL</code> humanization</li>
 <li><code>@TRACK [int] [Name]</code> — Name required (alphanumeric, underscores)</li>
 <li><code>@CHANNEL 10</code> — Drums use channel 10</li>
 <li><code>@DEFAULT_VEL [int]</code> — Fallback velocity</li>
 <li><code>@DEFAULT_DUR [float]</code> — Fallback duration (e.g. 0.25 for short hits)</li>
 <li><code>@MAP [Name]=[Integer]</code> — Custom pitch name</li>
-<li><code>@RULE [Pitch] VEL=[min]-[max]</code> — Randomize velocity when omitted (humanization)</li>
+<li><code>@RULE [Pitch] VEL=[min]-[max]</code> — Randomize velocity within range when omitted (humanization)</li>
 <li><code>@RULE [Pitch] DUR=[float]</code> — Fixed duration for a pitch</li>
 </ul>
 <p><code>@CHANNEL</code> does not persist across tracks. Declare it for each new track.</p>
@@ -248,14 +250,17 @@
 </code></pre>
 <h2>11. Output Checklist</h2>
 <ul>
+<li>Wrap code blocks inside ```lmp ... ``` code fence for instant player detection</li>
 <li>Begin with <code>@LMP 1.0</code></li>
-<li>Declare <code>@TRACK</code> and <code>@CHANNEL 10</code> before any events</li>
-<li>Use absolute beat numbers (0.0, 1.0, 2.5)</li>
+<li>Declare <code>@TRACK [id] [Name]</code> and <code>@CHANNEL 10</code> before any events</li>
+<li>Use absolute beat numbers (0.0, 1.0, 2.5). Beat 1.0 = downbeat in default <code>@ORIGIN 1</code></li>
+<li>Repeating notes: use fractional intervals (<code>:1/2</code>, <code>:1/4</code>, <code>:1/8</code>), never decimals (<code>:0.5</code> is invalid)</li>
+<li>Remember that loop EndBeat is exclusive (<code>1.0-5.0:1/2</code> fills a 4-beat bar)</li>
 <li>Use <code>//</code> for inline comments when helpful</li>
 <li>Omit velocity and duration when defaults apply; use <code>_</code> when omitting velocity but specifying length</li>
 <li>Use repeating syntax for steady pulse patterns; use <code>| R</code> to skip beats, <code>| V</code> for accents, <code>| D</code> for duration variations</li>
 <li>Use <code>@MAP</code> for semantic drum names when helpful</li>
-<li>Output only valid LMP; no prose mixed in</li>
+<li>Output only valid LMP; no conversational prose mixed into the code block</li>
 </ul>
 </div>
   </div>

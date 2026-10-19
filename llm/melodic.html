@@ -107,7 +107,7 @@
 <li><strong>SPN:</strong> C4 = 60. Use sharps (F#) or flats (Gb). Case-insensitive for reserved tokens.</li>
 <li><strong>R (Rest):</strong> Silence marker. No velocity or length. Use in Legato tracks for rests.</li>
 <li><strong>CC:</strong> Column 3 = controller number, Column 4 = value. Both required. Common: 64 (sustain), 11 (expression). Example: <code>1.0 CC 64 127</code>.</li>
-<li><strong>PB:</strong> Column 3 = bend in semitones (e.g. 1.0 up, -1.0 down, 0.0 center). Use <code>PB 0.0</code> to return to center before subsequent notes; pitch bend does not reset automatically.</li>
+<li><strong>PB:</strong> Column 3 = bend in semitones (e.g. 1.0 up, -1.0 down, 0.0 center). Pitch bends automatically reset to center (0.0) at the end of the note duration, but explicit <code>PB 0.0</code> can also be emitted.</li>
 <li><strong>TEMPO:</strong> <code>X.X TEMPO 120.0</code></li>
 <li><strong>TS:</strong> <code>X.X TS 7 8</code> (time signature change)</li>
 </ul>
@@ -118,6 +118,8 @@
 <li><code>@LMP 1.0</code> — Version (include at top)</li>
 <li><code>@BPM [float]</code> — Tempo</li>
 <li><code>@TIMESIG [int]/[int]</code> — e.g. <code>@TIMESIG 4/4</code> or <code>@TIMESIG 7/8</code></li>
+<li><code>@ORIGIN [0|1]</code> — Timeline start index (default <code>1</code> for 1-based downbeats; <code>0</code> for 0-based DAWs)</li>
+<li><code>@SEED [int]</code> — Deterministic PRNG seed for <code>@RULE VEL</code> humanization</li>
 <li><code>@TRACK [int] [Name]</code> — Name required (alphanumeric, underscores)</li>
 <li><code>@CHANNEL [int]</code> — 1–16 (avoid 10 for melodic; it is reserved for drums)</li>
 <li><code>@PROGRAM [int]</code> — MIDI patch (0–127). Optional.</li>
@@ -182,14 +184,14 @@
 </code></pre>
 <h2>11. Output Checklist</h2>
 <ul>
+<li>Wrap code blocks inside ```lmp ... ``` code fence for instant player detection</li>
 <li>Begin with <code>@LMP 1.0</code></li>
-<li>Declare <code>@TRACK</code> and <code>@CHANNEL</code> before any events</li>
-<li>Use absolute beat numbers (0.0, 1.0, 2.5)</li>
+<li>Declare <code>@TRACK [id] [Name]</code> and <code>@CHANNEL [1-16]</code> before any events</li>
+<li>Use absolute beat numbers (0.0, 1.0, 2.5). Beat 1.0 = downbeat in default <code>@ORIGIN 1</code></li>
 <li>Use <code>//</code> for inline comments when helpful</li>
 <li>Omit velocity and duration when defaults apply; use <code>_</code> when omitting velocity but specifying length</li>
 <li>Use <code>R</code> for rests in Legato tracks; give final Legato note explicit duration</li>
-<li>Use <code>PB 0.0</code> before returning to normal pitch after a bend</li>
-<li>Output only valid LMP; no prose mixed in</li>
+<li>Output only valid LMP; no conversational prose mixed in</li>
 </ul>
 </div>
   </div>
