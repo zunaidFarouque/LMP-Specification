@@ -27,17 +27,17 @@ bun run lmp song.lmp -o output/my-song.mid
 bun run lmp song.lmp --loose
 ```
 
-## Browser Playground
+## Next-Gen Web Studio
 
-**playground-web** — Full website with piano roll visualization, examples, and download. Located at repo root `playground-web/`. From `compiler-js/`:
+**studio-web** — Full DAW-grade web studio with bidirectional synchronization, piano roll, track mixer, syntax linter, and AI Musical Friend. Located at repo root `studio-web/`. From root:
 
 ```bash
-bun run build:web
+npm run dev:studio
 ```
 
-Then open `playground-web/index.html` or serve the folder. GitHub Pages compatible.
+Then open `http://localhost:5173` in your browser.
 
-**testground.html** — Lightweight single-file playground. Open in browser (double-click or `file://`). On first load, click **Load LMP library** and select `dist/lmp-core.v1.iife.min.js` (cached in localStorage). Features: live LMP → MIDI preview, drag-and-drop `.mid` to decompile.
+**testground.html** — Lightweight single-file preview. Open in browser (double-click or `file://`). On first load, click **Load LMP library** and select `dist/lmp-core.v1.iife.min.js` (cached in localStorage). Features: live LMP → MIDI preview, drag-and-drop `.mid` to decompile.
 
 ## Decompile MIDI to LMP
 

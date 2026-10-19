@@ -5,7 +5,7 @@
 **Packages:**
 - `lmp-core`: `2.0.0` (Compiler & Decompiler)
 - `lmp-mcp`: `2.0.0` (Model Context Protocol Server)
-- `lmp-playground-web`: `2.0.0` (Interactive Web Studio & Visualizer)
+- `lmp-studio-web`: `2.0.0` (Interactive Next-Gen Web Studio & Visualizer)
 - `lmp-bench`: `2.0.0` (Scientific Evaluation Suite)
 
 ---

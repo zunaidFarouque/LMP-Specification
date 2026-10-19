@@ -2,7 +2,7 @@
 
 An ultra-lean, token-efficient text-to-MIDI music sequencing protocol engineered specifically for Large Language Models (LLMs) and autonomous agent workflows.
 
-**🌐 [Website](https://zunaidfarouque.github.io/LMP-Specification/)** — Specification, LLM guides, interactive WebAudio playground, and LMP ↔ MIDI API.
+**🌐 [Website](https://zunaidfarouque.github.io/LMP-Specification/)** — Specification, LLM guides, next-gen Web Studio, and LMP ↔ MIDI API.
 
 ## 🎵 What is LMP v2.0?
 
@@ -42,7 +42,7 @@ Evaluated across 7 musical genres against standard representations:
 
 * **Autonomous Agent Workflows & MCP:** Direct integration with AI agent loops via the official `@lmp-midi/mcp` Model Context Protocol server.
 * **Algorithmic Composition & "Vibe-Coding":** Rapidly prototype complex, multi-track sequences, algorithmic legato, or custom drum maps (e.g., Tabla bols) using simple text generation.
-* **In-Browser Audio Generation:** Zero-dependency procedural WebAudio synthesis directly from text in the web playground.
+* **In-Browser Audio Generation:** Zero-dependency procedural WebAudio synthesis directly from text in the next-gen web studio.
 
 ## 🤖 Give LMP to an AI (Direct Links & Jina Reader)
 
