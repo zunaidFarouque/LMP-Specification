@@ -24,10 +24,35 @@ function pitchBendToSemitones(value, pbrange = DEFAULT_PBRANGE) {
   return Math.round(normalized * pbrange * 100) / 100;
 }
 
+function sanitizeTrackName(raw, fallback) {
+  if (!raw || typeof raw !== 'string') return fallback;
+  const sanitized = raw.trim().replace(/[^A-Za-z0-9_]/g, '_');
+  return sanitized.length > 0 ? sanitized : fallback;
+}
+
 /**
- * Parse MIDI and extract flat event list with absolute ticks.
- * @param {{ header: { ticksPerBeat?: number }, tracks: Array<Array<{ deltaTime: number, type: string, channel?: number, noteNumber?: number, velocity?: number, controllerType?: number, value?: number, microsecondsPerBeat?: number, numerator?: number, denominator?: number, programNumber?: number }>> }} parsed
- * @returns {{ events: Array<{ type: string, trackIndex: number, tick: number, channel?: number, noteNumber?: number, velocity?: number, durationTicks?: number, controllerType?: number, value?: number, bpm?: number, numerator?: number, denominator?: number, programNumber?: number }>, ppqn: number, bpm: number, timesig: { num: number, denom: number } }}
+ * Quantize durations close to standard musical lengths (e.g. 2-tick legato gap recovery).
+ */
+function quantizeTicks(ticks, ppqn, tolerance = 3) {
+  if (ticks <= 0) return 0;
+  const ratios = [
+    1, 2, 3, 4, 5, 6, 7, 8, 12, 16,
+    0.5, 0.25, 0.75, 1.5, 2.5, 3.5,
+    0.125, 0.375, 0.625, 0.875,
+    0.0625, 0.1875, 0.3125,
+    1 / 3, 2 / 3, 4 / 3, 1 / 6, 5 / 6, 1 / 12, 1 / 24,
+  ];
+  for (const r of ratios) {
+    const targetTicks = Math.round(r * ppqn);
+    if (Math.abs(ticks - targetTicks) <= tolerance) {
+      return targetTicks;
+    }
+  }
+  return ticks;
+}
+
+/**
+ * Parse MIDI and extract flat event list with absolute ticks and track metadata.
  */
 function extractEvents(parsed) {
   const ppqn = parsed.header?.ticksPerBeat ?? DEFAULT_PPQN;
@@ -35,23 +60,37 @@ function extractEvents(parsed) {
   let timesig = { num: 4, denom: 4 };
 
   const allEvents = [];
+  const trackNames = [];
+  const trackPbranges = [];
   const pendingNoteOns = new Map(); // trackIndex -> channel -> noteNumber -> { tick, velocity }
 
   for (let ti = 0; ti < parsed.tracks.length; ti++) {
     const track = parsed.tracks[ti];
     let tick = 0;
+    let rpnState = { msb: null, lsb: null };
 
     for (const ev of track) {
       tick += ev.deltaTime ?? 0;
 
+      if (ev.type === 'trackName' || ev.type === 'sequenceTrackName') {
+        const raw = ev.text || ev.name;
+        if (raw && !trackNames[ti]) trackNames[ti] = raw;
+        continue;
+      }
       if (ev.type === 'setTempo') {
-        bpm = microsecondsToBpm(ev.microsecondsPerBeat);
-        allEvents.push({ type: 'tempo', trackIndex: ti, tick, bpm });
+        const eventBpm = microsecondsToBpm(ev.microsecondsPerBeat);
+        if (tick === 0 && allEvents.filter((e) => e.type === 'tempo' && e.tick === 0).length === 0) {
+          bpm = eventBpm;
+        }
+        allEvents.push({ type: 'tempo', trackIndex: ti, tick, bpm: eventBpm });
         continue;
       }
       if (ev.type === 'timeSignature') {
-        timesig = { num: ev.numerator ?? 4, denom: ev.denominator ?? 4 };
-        allEvents.push({ type: 'ts', trackIndex: ti, tick, numerator: timesig.num, denominator: timesig.denom });
+        const ts = { num: ev.numerator ?? 4, denom: ev.denominator ?? 4 };
+        if (tick === 0 && allEvents.filter((e) => e.type === 'ts' && e.tick === 0).length === 0) {
+          timesig = ts;
+        }
+        allEvents.push({ type: 'ts', trackIndex: ti, tick, numerator: ts.num, denominator: ts.denom });
         continue;
       }
       if (ev.type === 'programChange') {
@@ -59,6 +98,23 @@ function extractEvents(parsed) {
         continue;
       }
       if (ev.type === 'controller') {
+        // Track RPN 00 00 sensitivity configuration
+        if (ev.controllerType === 101) {
+          rpnState.msb = ev.value;
+          continue;
+        }
+        if (ev.controllerType === 100) {
+          rpnState.lsb = ev.value;
+          continue;
+        }
+        if (ev.controllerType === 6 && rpnState.msb === 0 && rpnState.lsb === 0) {
+          trackPbranges[ti] = ev.value;
+          continue;
+        }
+        if (ev.controllerType === 38 && rpnState.msb === 0 && rpnState.lsb === 0) {
+          continue;
+        }
+
         allEvents.push({
           type: 'cc',
           trackIndex: ti,
@@ -84,7 +140,24 @@ function extractEvents(parsed) {
         if (!pendingNoteOns.has(ti)) pendingNoteOns.set(ti, new Map());
         const byCh = pendingNoteOns.get(ti);
         if (!byCh.has(ch)) byCh.set(ch, new Map());
-        byCh.get(ch).set(ev.noteNumber, { tick, velocity: ev.velocity ?? 64 });
+        // Standard MIDI: NoteOn with velocity 0 is treated as NoteOff
+        if ((ev.velocity ?? 64) === 0) {
+          const on = byCh.get(ev.noteNumber);
+          if (on) {
+            allEvents.push({
+              type: 'note',
+              trackIndex: ti,
+              tick: on.tick,
+              channel: ch,
+              noteNumber: ev.noteNumber,
+              velocity: on.velocity,
+              durationTicks: tick - on.tick,
+            });
+            byCh.delete(ev.noteNumber);
+          }
+        } else {
+          byCh.get(ch).set(ev.noteNumber, { tick, velocity: ev.velocity ?? 64 });
+        }
         continue;
       }
       if (ev.type === 'noteOff') {
@@ -108,13 +181,13 @@ function extractEvents(parsed) {
     }
   }
 
-  return { events: allEvents, ppqn, bpm, timesig };
+  return { events: allEvents, ppqn, bpm, timesig, trackNames, trackPbranges };
 }
 
 /**
- * Group events by track and tick, sort by tick then by type order (CC, PB, note).
+ * Group events by track and tick, sort by tick then by type order.
  */
-function groupAndSort(events, ppqn) {
+function groupAndSort(events) {
   const byTrack = new Map();
   for (const e of events) {
     const ti = e.trackIndex;
@@ -134,7 +207,7 @@ function groupAndSort(events, ppqn) {
 /**
  * Decompile MIDI buffer to LMP text.
  * @param {Uint8Array|Buffer|ArrayLike<number>} midiBuffer - Raw MIDI file bytes
- * @param {{ preferSpn?: boolean, precision?: number }} [options] - preferSpn: use SPN for tonal (default true); precision: beat decimals (default 3)
+ * @param {{ preferSpn?: boolean, precision?: number }} [options]
  * @returns {string} LMP text
  */
 export function decompile(midiBuffer, options = {}) {
@@ -148,8 +221,8 @@ export function decompile(midiBuffer, options = {}) {
       : new Uint8Array(Array.from(midiBuffer));
 
   const parsed = parseMidi(buffer);
-  const { events, ppqn, bpm, timesig } = extractEvents(parsed);
-  const byTrack = groupAndSort(events, ppqn);
+  const { events, ppqn, bpm, timesig, trackNames, trackPbranges } = extractEvents(parsed);
+  const byTrack = groupAndSort(events);
 
   const lines = [];
   lines.push('@LMP 1.0');
@@ -160,25 +233,62 @@ export function decompile(midiBuffer, options = {}) {
 
   const roundBeat = (b) => Math.round(b * Math.pow(10, precision)) / Math.pow(10, precision);
 
+  // Identify playable tracks vs conductor-only tracks
+  const playableTrackIndices = [];
+  const conductorMetaEvents = [];
+
   for (let ti = 0; ti < parsed.tracks.length; ti++) {
     const trackEvents = byTrack.get(ti) ?? [];
     const hasNotes = trackEvents.some((e) => e.type === 'note');
     const hasCC = trackEvents.some((e) => e.type === 'cc');
     const hasPB = trackEvents.some((e) => e.type === 'pb');
-    const hasTempo = trackEvents.some((e) => e.type === 'tempo');
-    const hasTS = trackEvents.some((e) => e.type === 'ts');
-    if (!hasNotes && !hasCC && !hasPB && !hasTempo && !hasTS) continue;
+    const hasProgram = trackEvents.some((e) => e.type === 'programChange');
+
+    if (hasNotes || hasCC || hasPB || hasProgram) {
+      playableTrackIndices.push(ti);
+    } else {
+      // Conductor track: collect any tempo/TS changes for later insertion
+      for (const e of trackEvents) {
+        if (e.type === 'tempo' || e.type === 'ts') conductorMetaEvents.push(e);
+      }
+    }
+  }
+
+  // If no playable tracks were found (e.g. meta-only file), keep all non-empty tracks
+  if (playableTrackIndices.length === 0) {
+    for (let ti = 0; ti < parsed.tracks.length; ti++) {
+      if ((byTrack.get(ti) ?? []).length > 0) playableTrackIndices.push(ti);
+    }
+  }
+
+  let lmpTrackNumber = 1;
+
+  for (let pi = 0; pi < playableTrackIndices.length; pi++) {
+    const ti = playableTrackIndices[pi];
+    const trackEvents = byTrack.get(ti) ?? [];
+
+    // If first playable track, attach any conductor track meta events (deduped)
+    if (pi === 0 && conductorMetaEvents.length > 0) {
+      for (const ce of conductorMetaEvents) {
+        if (!trackEvents.some((te) => te.type === ce.type && te.tick === ce.tick)) {
+          trackEvents.push(ce);
+        }
+      }
+      trackEvents.sort((a, b) => a.tick - b.tick);
+    }
 
     const channel = trackEvents.find((e) => e.channel !== undefined)?.channel ?? 0;
     const displayChannel = channel + 1;
-    // Meta-only track (tempo/ts) needs a channel for LMP; use 1
-    const effectiveChannel = hasNotes || hasCC || hasPB ? displayChannel : 1;
     const program = trackEvents.find((e) => e.type === 'programChange')?.programNumber;
+    const pbrange = trackPbranges[ti] ?? DEFAULT_PBRANGE;
 
-    const trackName = `Track_${ti + 1}`;
-    lines.push(`@TRACK ${ti + 1} ${trackName}`);
-    lines.push(`@CHANNEL ${effectiveChannel}`);
+    const rawName = trackNames[ti];
+    const trackName = sanitizeTrackName(rawName, `Track_${lmpTrackNumber}`);
+
+    lines.push(`@TRACK ${lmpTrackNumber} ${trackName}`);
+    lines.push(`@CHANNEL ${displayChannel}`);
     if (program !== undefined) lines.push(`@PROGRAM ${program}`);
+    if (pbrange !== DEFAULT_PBRANGE) lines.push(`@PBRANGE ${pbrange}`);
     lines.push('');
 
     const noteGroups = new Map(); // tick -> [{ noteNumber, velocity, durationTicks }]
@@ -187,11 +297,16 @@ export function decompile(midiBuffer, options = {}) {
     const tempoAtTick = [];
     const tsAtTick = [];
 
+    // Find the max note end tick to safely omit auto-reset PB 0.0 at track end
+    let maxNoteEndTick = 0;
+
     for (const e of trackEvents) {
       const beat = roundBeat(tickToLmpBeat(e.tick, ppqn));
       if (e.type === 'note') {
-        if (!noteGroups.has(e.tick)) noteGroups.set(e.tick, []);
-        noteGroups.get(e.tick).push({
+        const end = e.tick + (e.durationTicks ?? 0);
+        if (end > maxNoteEndTick) maxNoteEndTick = end;
+        if (!noteGroups.has(beat)) noteGroups.set(beat, []);
+        noteGroups.get(beat).push({
           noteNumber: e.noteNumber,
           velocity: e.velocity,
           durationTicks: e.durationTicks,
@@ -216,37 +331,72 @@ export function decompile(midiBuffer, options = {}) {
     const sortedBeats = [...allBeats].sort((a, b) => a - b);
 
     for (const beat of sortedBeats) {
-      const tick = Math.round((beat - 1) * ppqn);
-
+      // Deduplicate tempo events between header and tick 0
       for (const e of tempoAtTick.filter((x) => x.beat === beat)) {
+        if (e.tick === 0 && e.bpm === bpm) continue;
         lines.push(`${beat} TEMPO ${e.bpm}`);
       }
+
+      // Deduplicate time signature events between header and tick 0
       for (const e of tsAtTick.filter((x) => x.beat === beat)) {
+        if (e.tick === 0 && e.numerator === timesig.num && e.denominator === timesig.denom) continue;
         lines.push(`${beat} TS ${e.numerator ?? 4} ${e.denominator ?? 4}`);
       }
+
       for (const e of ccAtTick.filter((x) => x.beat === beat)) {
         lines.push(`${beat} CC ${e.controllerType} ${e.value}`);
       }
-      for (const e of pbAtTick.filter((x) => x.beat === beat)) {
-        const semitones = pitchBendToSemitones(e.value);
+
+      const pbs = pbAtTick.filter((x) => x.beat === beat);
+      for (let pbi = 0; pbi < pbs.length; pbi++) {
+        const e = pbs[pbi];
+        // Omit trailing compiler auto-reset PB 0.0 after all notes end
+        if (e.value === 0 && e.tick > maxNoteEndTick && maxNoteEndTick > 0) continue;
+        // If multiple PB events share the exact same beat, emit the last one
+        if (pbi < pbs.length - 1) continue;
+        const semitones = pitchBendToSemitones(e.value, pbrange);
         lines.push(`${beat} PB ${semitones}`);
       }
 
-      const notes = noteGroups.get(tick) ?? [];
+      const notes = noteGroups.get(beat) ?? [];
       if (notes.length > 0) {
         notes.sort((a, b) => a.noteNumber - b.noteNumber);
         const isDrum = displayChannel === 10;
-        const pitchStr = notes
+
+        // Group notes by velocity and duration for multi-line polyphony (+) support
+        const groups = [];
+        for (const n of notes) {
+          const qDurTicks = quantizeTicks(n.durationTicks ?? ppqn / 4, ppqn);
+          const durBeats = Math.round((qDurTicks / ppqn) * 1000) / 1000;
+          const vel = n.velocity;
+          let grp = groups.find((g) => g.velocity === vel && g.durBeats === durBeats);
+          if (!grp) {
+            grp = { velocity: vel, durBeats, notes: [] };
+            groups.push(grp);
+          }
+          grp.notes.push(n);
+        }
+
+        // Base line
+        const g0 = groups[0];
+        const p0 = g0.notes
           .map((n) => (isDrum || !preferSpn ? String(n.noteNumber) : (midiToSpn(n.noteNumber) ?? String(n.noteNumber))))
           .join(',');
-        const vel = notes[0].velocity;
-        const durTicks = notes[0].durationTicks ?? ppqn / 4;
-        const durBeats = Math.round((durTicks / ppqn) * 1000) / 1000;
-        lines.push(`${beat} ${pitchStr} ${vel} ${durBeats}`);
+        lines.push(`${beat} ${p0} ${g0.velocity} ${g0.durBeats}`);
+
+        // Continuation lines (+) when simultaneous notes differ in duration or velocity
+        for (let gi = 1; gi < groups.length; gi++) {
+          const g = groups[gi];
+          const p = g.notes
+            .map((n) => (isDrum || !preferSpn ? String(n.noteNumber) : (midiToSpn(n.noteNumber) ?? String(n.noteNumber))))
+            .join(',');
+          lines.push(`+ ${p} ${g.velocity} ${g.durBeats}`);
+        }
       }
     }
 
     lines.push('');
+    lmpTrackNumber++;
   }
 
   return lines.join('\n').trimEnd();

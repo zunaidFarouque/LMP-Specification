@@ -1,0 +1,20 @@
+{
+  "id": "prod-08-cc-repeating-loop-hallucination",
+  "dimension": "dim4_production_nuance",
+  "name": "Hallucinated repeating loop for CC (1.0-5.0:1/4 CC 11 60)",
+  "expectedCategory": "syntax_error",
+  "promptAdherence": "feature_generalization_hallucination",
+  "tokens": 42,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 114
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 114
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0-5.0:1/4 CC 11 60\n"
+}

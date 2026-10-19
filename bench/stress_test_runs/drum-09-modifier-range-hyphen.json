@@ -1,0 +1,20 @@
+{
+  "id": "drum-09-modifier-range-hyphen",
+  "dimension": "dim2_complex_drums",
+  "name": "Modifier range syntax (| V [1.0-3.0] 110)",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 54,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 178
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 178
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:1/4 42\n| V [1.0-3.0] 115\n"
+}

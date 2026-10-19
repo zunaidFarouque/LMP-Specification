@@ -1,0 +1,20 @@
+{
+  "id": "trans-06-triplet-quantization-drift",
+  "dimension": "dim3_translation_reconstruction",
+  "name": "Triplet micro-timing precision (1.333, 1.667) across 4 bars",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 102,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 104
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 104
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 C4 80 0.333\n1.333 D4 80 0.333\n1.667 E4 80 0.333\n2.0 F4 80 0.333\n2.333 G4 80 0.333\n2.667 A4 80 0.333\n"
+}

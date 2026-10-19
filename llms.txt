@@ -1,0 +1,21 @@
+# Lean Musical Protocol (LMP)
+
+> An ultra-lean, token-efficient text-to-MIDI music sequencing protocol engineered specifically for Large Language Models (LLMs) and autonomous agent workflows.
+
+LMP acts as an intermediate language between AI models and binary MIDI data. It replaces repetitive JSON/XML and error-prone delta-time arithmetic with a Space-Separated Value (SSV) grid, absolute quarter-note timestamps, stateful header defaults, and deterministic MIDI compilation.
+
+## Specifications & AI Prompts
+
+- [LMP All-in-One AI Specification](specs/ai/LMP-AI-FULL.md): Master AI prompt guide combining general rules, melodic chords, voice leading, percussive grooves, and strict syntax constraints into a single document.
+- [LMP General AI Guide](specs/ai/LMP-AI-General.md): The primary ~2,200-token prompt guide for general LLM music composition.
+- [LMP Melodic Guide](specs/ai/LMP-AI-Melodic.md): In-depth guide for voice leading, chords, pitch bends, CC controllers, and monophonic legato phrasing.
+- [LMP Percussive Guide](specs/ai/LMP-AI-Percussive.md): Guide for drum sequencing, General MIDI percussion maps, repeating grid loops, and groove accents.
+- [LMP Core Technical Specification](specs/LMP%20v1%20-%20Spec.md): Complete formal EBNF syntax, lexical rules, and AST compiler specification.
+- [Soundiron Tablas 2.0 Drummap Example](specs/ai/Custom%20Drummap%20Examples/Indian%20Tablas/LMP-AI-Tabla.md): Example custom @MAP dictionary and AI prompt for Indian classical tabla percussion.
+
+## Optional & Tools
+
+- [LMP Model Context Protocol (MCP) Server](lmp-mcp/README.md): Official stdio MCP server for compile, decompile, and validation inside Claude Desktop and Cursor.
+- [LMP Core Compiler & Decompiler](compiler-js/README.md): Zero-dependency Node.js/browser compiler and decompiler with 136 core unit tests.
+- [LMP Web Playground](playground-web/README.md): Interactive WebAudio playground with canvas piano roll, transport controls, and playhead tracking.
+- [LMP-Bench Benchmark Suite](bench/README.md): Evaluation harness and statistical stress testing suite across 7 musical genres.

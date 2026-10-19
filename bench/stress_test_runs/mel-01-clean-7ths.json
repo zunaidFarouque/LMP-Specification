@@ -1,0 +1,20 @@
+{
+  "id": "mel-01-clean-7ths",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Clean diatonic 7th chords with syncopated soprano melody",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 181,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 260
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 260
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Piano_Chords\n@CHANNEL 1\n@DEFAULT_VEL 80\n@DEFAULT_DUR 1.0\n\n1.0 C4,E4,G4,B4\n2.0 D4,F4,A4,C5\n3.0 G3,B3,D4,F4\n4.0 C4,E4,G4,B4 _ 2.0\n\n@TRACK 2 Flute_Lead\n@CHANNEL 2\n@DEFAULT_VEL 95\n@RULE LEGATO=TRUE\n\n1.0 E5\n1.75 G5\n2.25 A5\n3.0 B5\n3.5 C6 _ 1.5\n"
+}

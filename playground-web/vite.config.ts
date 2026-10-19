@@ -6,5 +6,15 @@ export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? './',
   build: {
     outDir: process.env.VITE_BASE_PATH ? 'dist/playground' : 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'codemirror-vendor': ['codemirror', '@codemirror/state', '@codemirror/view'],
+          'tone-midi': ['@tonejs/midi'],
+          'ui-vendor': ['lucide-react', 'tippy.js'],
+        },
+      },
+    },
   },
 });

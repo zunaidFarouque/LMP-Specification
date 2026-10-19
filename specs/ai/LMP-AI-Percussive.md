@@ -78,12 +78,14 @@ Declare before events. Each track needs `@TRACK` and `@CHANNEL`.
 - `@LMP 1.0` — Version (include at top)
 - `@BPM [float]` — Tempo
 - `@TIMESIG [int]/[int]` — e.g. `@TIMESIG 4/4` or `@TIMESIG 7/8`
+- `@ORIGIN [0|1]` — Timeline start index (default `1` for 1-based downbeats; `0` for 0-based DAWs)
+- `@SEED [int]` — Deterministic PRNG seed for `@RULE VEL` humanization
 - `@TRACK [int] [Name]` — Name required (alphanumeric, underscores)
 - `@CHANNEL 10` — Drums use channel 10
 - `@DEFAULT_VEL [int]` — Fallback velocity
 - `@DEFAULT_DUR [float]` — Fallback duration (e.g. 0.25 for short hits)
 - `@MAP [Name]=[Integer]` — Custom pitch name
-- `@RULE [Pitch] VEL=[min]-[max]` — Randomize velocity when omitted (humanization)
+- `@RULE [Pitch] VEL=[min]-[max]` — Randomize velocity within range when omitted (humanization)
 - `@RULE [Pitch] DUR=[float]` — Fixed duration for a pitch
 
 `@CHANNEL` does not persist across tracks. Declare it for each new track.
@@ -160,11 +162,14 @@ Beat-spec: discrete `[1.0 2.0]`, single `4.0 90`, or range `[2.0-4.0]`. When mul
 
 ## 11. Output Checklist
 
+- Wrap code blocks inside \`\`\`lmp ... \`\`\` code fence for instant player detection
 - Begin with `@LMP 1.0`
-- Declare `@TRACK` and `@CHANNEL 10` before any events
-- Use absolute beat numbers (0.0, 1.0, 2.5)
+- Declare `@TRACK [id] [Name]` and `@CHANNEL 10` before any events
+- Use absolute beat numbers (0.0, 1.0, 2.5). Beat 1.0 = downbeat in default `@ORIGIN 1`
+- Repeating notes: use fractional intervals (`:1/2`, `:1/4`, `:1/8`), never decimals (`:0.5` is invalid)
+- Remember that loop EndBeat is exclusive (`1.0-5.0:1/2` fills a 4-beat bar)
 - Use `//` for inline comments when helpful
 - Omit velocity and duration when defaults apply; use `_` when omitting velocity but specifying length
 - Use repeating syntax for steady pulse patterns; use `| R` to skip beats, `| V` for accents, `| D` for duration variations
 - Use `@MAP` for semantic drum names when helpful
-- Output only valid LMP; no prose mixed in
+- Output only valid LMP; no conversational prose mixed into the code block

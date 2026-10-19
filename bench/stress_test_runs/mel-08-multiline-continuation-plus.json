@@ -1,0 +1,20 @@
+{
+  "id": "mel-08-multiline-continuation-plus",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Multi-line polyphony with + continuation and varying durations",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 59,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 85
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 85
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C3 _ 4.0\n+ E4,G4 _ 2.0\n+ B4 _ 1.0\n"
+}

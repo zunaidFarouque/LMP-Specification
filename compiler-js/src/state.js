@@ -8,10 +8,25 @@ const DEFAULT_PBRANGE = 2;
 const TRACK_NAME_REGEX = /^[A-Za-z0-9_]+$/;
 const MAP_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+export class LMPError extends Error {
+  constructor(message, lineInfo = {}) {
+    super(message);
+    this.name = 'LMPError';
+    if (lineInfo.sourceLine != null) this.line = lineInfo.sourceLine;
+    else if (lineInfo.line != null) this.line = lineInfo.line;
+    if (lineInfo.sourceCol != null) this.col = lineInfo.sourceCol;
+    else if (lineInfo.col != null) this.col = lineInfo.col;
+  }
+}
+
+function createError(message, lineInfo) {
+  return new LMPError(message, lineInfo);
+}
+
 /**
- * @param {{ type: string, tokens: string[] }[]} lines - Preprocessed lines
+ * @param {{ type: string, tokens: string[], sourceLine?: number, sourceCol?: number }[]} lines - Preprocessed lines
  * @param {{ loose?: boolean, warnings?: string[] }} [options] - Loose mode options
- * @returns {{ version?: string, bpm?: number, timesig: { num: number, denom: number }, ppqn: number, tracks: any[], map: Record<string, number> }}
+ * @returns {{ version?: string, bpm?: number, timesig: { num: number, denom: number }, ppqn: number, origin?: number, seed?: number, tracks: any[], map: Record<string, number> }}
  */
 export function buildState(lines, options = {}) {
   const { loose = false, warnings = [] } = options;
@@ -20,16 +35,19 @@ export function buildState(lines, options = {}) {
     bpm: undefined,
     timesig: { ...DEFAULT_TIMESIG },
     ppqn: DEFAULT_PPQN,
+    origin: undefined,
+    seed: undefined,
     tracks: [],
     map: Object.create(null),
   };
 
   let currentTrackIndex = -1;
 
-  for (const { type, tokens } of lines) {
+  for (const line of lines) {
+    const { type, tokens } = line;
     if (type === 'event' || type === 'continuation' || type === 'modifier') {
       if (state.tracks.length === 0) {
-        throw new Error('LMP: Events must appear after at least one @TRACK declaration.');
+        throw createError('LMP: Events must appear after at least one @TRACK declaration.', line);
       }
       const track = state.tracks[currentTrackIndex];
       if (track && track.channel === undefined) {
@@ -37,7 +55,7 @@ export function buildState(lines, options = {}) {
           track.channel = 1;
           warnings.push(`LMP [loose]: Track ${track.id} (${track.name}) missing @CHANNEL; assuming channel 1`);
         } else {
-          throw new Error('LMP: Each track must declare @CHANNEL before events.');
+          throw createError('LMP: Each track must declare @CHANNEL before events.', line);
         }
       }
       continue;
@@ -53,6 +71,22 @@ export function buildState(lines, options = {}) {
         break;
       case '@BPM':
         if (args[0] !== undefined) state.bpm = parseFloat(args[0], 10);
+        break;
+      case '@ORIGIN':
+        if (args[0] !== undefined) {
+          const o = parseInt(args[0], 10);
+          if (o === 0 || o === 1) {
+            state.origin = o;
+          } else {
+            throw createError('LMP: @ORIGIN must be 0 or 1.', line);
+          }
+        }
+        break;
+      case '@SEED':
+        if (args[0] !== undefined) {
+          const s = parseInt(args[0], 10);
+          if (!isNaN(s)) state.seed = s;
+        }
         break;
       case '@TIMESIG':
         if (args[0]) {
@@ -72,22 +106,23 @@ export function buildState(lines, options = {}) {
         break;
       case '@TRACK': {
         const id = args[0] !== undefined ? parseInt(args[0], 10) : NaN;
-        const name = args[1];
+        const name = args.length > 1 ? args.slice(1).join('_') : '';
         if (!name || !TRACK_NAME_REGEX.test(name)) {
-          throw new Error('LMP: @TRACK requires a name (alphanumeric and underscores only).');
+          throw createError('LMP: @TRACK requires a name (alphanumeric and underscores only).', line);
         }
         if (isNaN(id)) {
-          throw new Error('LMP: @TRACK requires a track number.');
+          throw createError('LMP: @TRACK requires a track number.', line);
         }
+        const prevTrack = currentTrackIndex >= 0 ? state.tracks[currentTrackIndex] : null;
         state.tracks.push({
           id,
           name,
           channel: undefined,
           program: undefined,
           pbrange: DEFAULT_PBRANGE,
-          defaultVel: undefined,
-          defaultDur: undefined,
-          rules: [],
+          defaultVel: prevTrack?.defaultVel,
+          defaultDur: prevTrack?.defaultDur,
+          rules: prevTrack?.rules ? prevTrack.rules.map((r) => ({ ...r })) : [],
         });
         currentTrackIndex = state.tracks.length - 1;
         break;
@@ -115,7 +150,7 @@ export function buildState(lines, options = {}) {
         if (!pair || !pair.includes('=')) break;
         const [name, val] = pair.split('=').map((s) => s.trim());
         if (!name || !MAP_NAME_REGEX.test(name)) {
-          throw new Error('LMP: @MAP name must be alphanumeric and underscores only, and cannot start with a digit.');
+          throw createError('LMP: @MAP name must be alphanumeric and underscores only, and cannot start with a digit.', line);
         }
         const midi = parseInt(val, 10);
         if (!Number.isNaN(midi) && midi >= 0 && midi <= 127) state.map[name] = midi;
@@ -130,21 +165,21 @@ export function buildState(lines, options = {}) {
             warnings.push(`LMP [loose]: @INHERIT from non-existent track ${fromId}; skipping`);
             break;
           }
-          throw new Error('LMP: @INHERIT from non-existent track.');
+          throw createError('LMP: @INHERIT from non-existent track.', line);
         }
         if (fromIdx === currentTrackIndex) {
           if (loose) {
             warnings.push(`LMP [loose]: @INHERIT from same track (${fromId}) is invalid; skipping`);
             break;
           }
-          throw new Error('LMP: @INHERIT from same track is invalid.');
+          throw createError('LMP: @INHERIT from same track is invalid.', line);
         }
         if (fromIdx > currentTrackIndex) {
           if (loose) {
             warnings.push(`LMP [loose]: @INHERIT from track ${fromId} declared later is invalid; skipping`);
             break;
           }
-          throw new Error('LMP: @INHERIT from track declared later is invalid.');
+          throw createError('LMP: @INHERIT from track declared later is invalid.', line);
         }
         const from = state.tracks[fromIdx];
         const list = args[1] ? args[1].toUpperCase().split(',').map((s) => s.trim()) : ['VEL', 'DUR', 'CHANNEL', 'PROGRAM', 'PBRANGE', 'RULE'];

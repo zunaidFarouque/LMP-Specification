@@ -1,0 +1,20 @@
+{
+  "id": "drum-05-modifier-commas-in-brackets",
+  "dimension": "dim2_complex_drums",
+  "name": "Modifier with commas inside brackets (| V [1.5, 2.5, 3.5] 110)",
+  "expectedCategory": "syntax_edge_case",
+  "promptAdherence": "punctuation_slip",
+  "tokens": 60,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 114
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 114
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:1/2 42\n| V [1.5, 2.5, 3.5] 110\n"
+}

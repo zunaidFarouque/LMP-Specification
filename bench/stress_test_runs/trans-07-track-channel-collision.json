@@ -1,0 +1,20 @@
+{
+  "id": "trans-07-track-channel-collision",
+  "dimension": "dim3_translation_reconstruction",
+  "name": "Two tracks sharing channel 1 with conflicting programs",
+  "expectedCategory": "clean_with_midi_quirk",
+  "promptAdherence": "channel_assignment_overlap",
+  "tokens": 72,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 97
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 97
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n@PROGRAM 0\n1.0 C4 80 1.0\n\n@TRACK 2 Strings\n@CHANNEL 1\n@PROGRAM 48\n1.0 G4 80 1.0\n"
+}

@@ -12,7 +12,8 @@ const SPN_REGEX = /^([A-G])(#{1,2}|b{1,2})?(-?\d+)$/i;
  */
 export function spnToMidi(spn) {
   if (!spn || typeof spn !== 'string') return undefined;
-  const m = spn.trim().match(SPN_REGEX);
+  const normalized = spn.trim().replace(/♭/g, 'b').replace(/♯/g, '#');
+  const m = normalized.match(SPN_REGEX);
   if (!m) return undefined;
   let noteIndex = NOTE_NAMES.indexOf(m[1].toUpperCase());
   if (noteIndex === -1) return undefined;

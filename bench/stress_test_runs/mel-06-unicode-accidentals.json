@@ -1,0 +1,20 @@
+{
+  "id": "mel-06-unicode-accidentals",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Unicode accidental symbols (E♭4, F♯4) instead of ascii b/#",
+  "expectedCategory": "syntax_error",
+  "promptAdherence": "typographic_drift",
+  "tokens": 66,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 100
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 100
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 E♭4,G4,B♭4 80 1.0\n2.0 F♯4,A4,C♯5 80 1.0\n"
+}

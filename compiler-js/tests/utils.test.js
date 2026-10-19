@@ -18,6 +18,16 @@ describe('spnToMidi', () => {
     expect(spnToMidi('C-1')).toBe(0);
     expect(spnToMidi('G9')).toBe(127);
   });
+
+  test('Unicode accidentals ♭ and ♯ normalize to b and #', () => {
+    expect(spnToMidi('E♭4')).toBe(63);
+    expect(spnToMidi('Eb4')).toBe(63);
+    expect(spnToMidi('F♯4')).toBe(66);
+    expect(spnToMidi('F#4')).toBe(66);
+    expect(spnToMidi('B♭3')).toBe(58);
+    expect(spnToMidi('B♭4')).toBe(70);
+    expect(spnToMidi('C♯5')).toBe(73);
+  });
 });
 
 describe('beatToTicks', () => {

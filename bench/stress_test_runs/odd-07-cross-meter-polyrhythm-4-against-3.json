@@ -1,0 +1,20 @@
+{
+  "id": "odd-07-cross-meter-polyrhythm-4-against-3",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Cross-track polyrhythm: 4 beats against 3 dotted eighths",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 150,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 166
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 166
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Straight_Pulse\n@CHANNEL 1\n1.0 C4 80 0.8\n2.0 C4 80 0.8\n3.0 C4 80 0.8\n4.0 C4 80 0.8\n\n@TRACK 2 Dotted_Cross_Rhythm\n@CHANNEL 2\n1.0 E4 90 0.7\n1.75 G4 90 0.7\n2.5 B4 90 0.7\n3.25 D5 90 0.7\n"
+}

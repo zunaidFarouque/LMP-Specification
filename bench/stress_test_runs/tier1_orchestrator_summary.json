@@ -1,0 +1,1095 @@
+{
+  "timestamp": "2026-10-19T06:54:22.246Z",
+  "totalRuns": 50,
+  "strictPasses": 44,
+  "strictValidityRate": "88.0%",
+  "loosePasses": 49,
+  "looseValidityRate": "98.0%",
+  "totalTokens": 4450,
+  "avgTokensPerComposition": 89,
+  "dimensions": {
+    "dim1_melodic_harmonic": {
+      "name": "Creative Melodic & Harmonic",
+      "description": "Chords, 7ths, voice leading, syncopation, SPN variations, and legato phrasing",
+      "totalRuns": 10,
+      "strictPass": 9,
+      "loosePass": 10,
+      "runs": [
+        {
+          "id": "mel-01-clean-7ths",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Clean diatonic 7th chords with syncopated soprano melody",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 181,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 260
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 260
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Piano_Chords\n@CHANNEL 1\n@DEFAULT_VEL 80\n@DEFAULT_DUR 1.0\n\n1.0 C4,E4,G4,B4\n2.0 D4,F4,A4,C5\n3.0 G3,B3,D4,F4\n4.0 C4,E4,G4,B4 _ 2.0\n\n@TRACK 2 Flute_Lead\n@CHANNEL 2\n@DEFAULT_VEL 95\n@RULE LEGATO=TRUE\n\n1.0 E5\n1.75 G5\n2.25 A5\n3.0 B5\n3.5 C6 _ 1.5\n"
+        },
+        {
+          "id": "mel-02-spaces-in-chord",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Space inside comma-separated chord (C4, E4, G4, B4)",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "common_llm_slip",
+          "tokens": 49,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 83
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 83
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C4, E4, G4, B4 80 1.0\n"
+        },
+        {
+          "id": "mel-03-chord-symbol-hallucination",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Hallucinated chord symbol (Cmaj7, Dm7) instead of SPN note pitches",
+          "expectedCategory": "semantic_syntax_error",
+          "promptAdherence": "knowledge_leak",
+          "tokens": 63,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 60
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 60
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 Cmaj7 80 1.0\n2.0 Dm7 80 1.0\n3.0 G7 80 1.0\n"
+        },
+        {
+          "id": "mel-04-missing-underscore-col3",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Missing underscore in column 3 (intended duration 2.0 interpreted as velocity 2)",
+          "expectedCategory": "silent_semantic_error",
+          "promptAdherence": "syntax_confusion",
+          "tokens": 60,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 67
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 67
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n@DEFAULT_VEL 85\n@DEFAULT_DUR 0.25\n1.0 C4 2.0\n2.0 E4 2.0\n"
+        },
+        {
+          "id": "mel-05-enharmonic-accidentals",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Enharmonic sharp and flat combinations (Eb4, F#4, Bb3, Db5)",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 91,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 152
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 152
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Neo_Soul\n@CHANNEL 1\n1.0 Eb4,G4,Bb4,Db5 85 1.0\n2.0 Ab3,C4,Eb4,Gb4 85 1.0\n3.0 Db4,F4,Ab4,C5 85 1.0\n"
+        },
+        {
+          "id": "mel-06-unicode-accidentals",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Unicode accidental symbols (E♭4, F♯4) instead of ascii b/#",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "typographic_drift",
+          "tokens": 66,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 100
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 100
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 E♭4,G4,B♭4 80 1.0\n2.0 F♯4,A4,C♯5 80 1.0\n"
+        },
+        {
+          "id": "mel-07-legato-unterminated-phrase",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Legato phrase without terminating explicit length on final note",
+          "expectedCategory": "edge_case_semantic",
+          "promptAdherence": "partial",
+          "tokens": 59,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 85
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 85
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Flute\n@CHANNEL 1\n@RULE LEGATO=TRUE\n1.0 C5\n2.0 D5\n3.0 E5\n4.0 G5\n"
+        },
+        {
+          "id": "mel-08-multiline-continuation-plus",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Multi-line polyphony with + continuation and varying durations",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 59,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 85
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 85
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C3 _ 4.0\n+ E4,G4 _ 2.0\n+ B4 _ 1.0\n"
+        },
+        {
+          "id": "mel-09-blank-line-before-continuation",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Blank line before + continuation (triggers orphaned continuation error)",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "formatting_error",
+          "tokens": 49,
+          "strict": {
+            "ok": false,
+            "error": {
+              "message": "LMP: Orphaned same-beat continuation (+).",
+              "line": 7,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [
+              "LMP [loose]: Detached continuation (+) after blank line at line 7; attaching to beat 1"
+            ],
+            "error": null,
+            "midiLength": 76
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C3 _ 4.0\n\n+ E4,G4 _ 2.0\n"
+        },
+        {
+          "id": "mel-10-lowercase-spn",
+          "dimension": "dim1_melodic_harmonic",
+          "name": "Lowercase Scientific Pitch Notation (c4, eb4, f#4)",
+          "expectedCategory": "clean",
+          "promptAdherence": "case_drift",
+          "tokens": 66,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 108
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 108
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 c4,e4,g4,b4 80 1.0\n2.0 d4,f#4,a4 80 1.0\n"
+        }
+      ]
+    },
+    "dim2_complex_drums": {
+      "name": "Complex Drums & Modifiers",
+      "description": "GM Channel 10, rolls, ghost hits, hi-hat modifiers, repeating loops",
+      "totalRuns": 10,
+      "strictPass": 9,
+      "loosePass": 10,
+      "runs": [
+        {
+          "id": "drum-01-clean-modifiers",
+          "dimension": "dim2_complex_drums",
+          "name": "Clean repeating 16th hats with | V accent and | R rest modifiers",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 131,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 194
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 194
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 124\n@TRACK 1 Drums\n@CHANNEL 10\n@DEFAULT_DUR 0.25\n@DEFAULT_VEL 100\n@RULE 42 VEL=70-85\n\n1.0 36 120\n2.0 38 115\n3.0 36 118\n4.0 38 115\n\n1.0-5.0:1/4 42\n| R 2.0 4.0\n| V [1.5 2.5 3.5 4.5] 110\n"
+        },
+        {
+          "id": "drum-02-decimal-interval",
+          "dimension": "dim2_complex_drums",
+          "name": "Decimal interval in repeating note (1.0-5.0:0.25 42)",
+          "expectedCategory": "syntax_strict_error",
+          "promptAdherence": "common_llm_slip",
+          "tokens": 44,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 178
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 178
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 124\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:0.25 42 90 0.25\n"
+        },
+        {
+          "id": "drum-03-loop-endbeat-off-by-one",
+          "dimension": "dim2_complex_drums",
+          "name": "Loop EndBeat off-by-one (1.0-4.0:1/4 cuts off beat 4.0 in 4/4 bar)",
+          "expectedCategory": "musical_boundary_error",
+          "promptAdherence": "arithmetic_drift",
+          "tokens": 82,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 146
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 146
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n// Intended to fill full 4-beat bar, but 4.0 is exclusive so beat 4 is missing!\n1.0-4.0:1/4 42 90 0.25\n"
+        },
+        {
+          "id": "drum-04-blank-line-before-modifier",
+          "dimension": "dim2_complex_drums",
+          "name": "Blank line between repeating note and | modifier (orphaned modifier)",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "formatting_error",
+          "tokens": 50,
+          "strict": {
+            "ok": false,
+            "error": {
+              "message": "LMP: Orphaned modifier (|) — must follow a repeating note.",
+              "line": 8,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [
+              "LMP [loose]: Detached modifier (|) after blank line at line 8; attaching to repeating note"
+            ],
+            "error": null,
+            "midiLength": 100
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n\n1.0-5.0:1/2 42\n\n| R 2.0 4.0\n"
+        },
+        {
+          "id": "drum-05-modifier-commas-in-brackets",
+          "dimension": "dim2_complex_drums",
+          "name": "Modifier with commas inside brackets (| V [1.5, 2.5, 3.5] 110)",
+          "expectedCategory": "syntax_edge_case",
+          "promptAdherence": "punctuation_slip",
+          "tokens": 60,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 114
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 114
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:1/2 42\n| V [1.5, 2.5, 3.5] 110\n"
+        },
+        {
+          "id": "drum-06-lowercase-modifier",
+          "dimension": "dim2_complex_drums",
+          "name": "Lowercase modifier token (| v [1.5 2.5] 110 and | r 2.0)",
+          "expectedCategory": "case_sensitivity_error",
+          "promptAdherence": "case_drift",
+          "tokens": 66,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 100
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 100
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:1/2 42\n| r 2.0 4.0\n| v [1.5 2.5] 110\n"
+        },
+        {
+          "id": "drum-07-unmapped-drum-names",
+          "dimension": "dim2_complex_drums",
+          "name": "Unmapped drum names (kick, snare) without @MAP declaration",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "missing_declaration",
+          "tokens": 72,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 50
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 50
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0 kick 110 0.25\n2.0 snare 110 0.25\n3.0 kick 110 0.25\n4.0 snare 110 0.25\n"
+        },
+        {
+          "id": "drum-08-ghost-notes-seeded-rules",
+          "dimension": "dim2_complex_drums",
+          "name": "Ghost notes with low velocity humanization and @RULE VEL",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 143,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 162
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 162
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 100\n@SEED 42\n@TRACK 1 Drums\n@CHANNEL 10\n@MAP kick=36\n@MAP snare=38\n@MAP hihat=42\n@RULE hihat VEL=65-80\n\n1.0 kick 115\n1.75 snare 30 0.1 // ghost note\n2.0 snare 110\n2.75 snare 25 0.1 // ghost note\n3.0 kick 115\n4.0 snare 110\n1.0-5.0:1/2 hihat\n"
+        },
+        {
+          "id": "drum-09-modifier-range-hyphen",
+          "dimension": "dim2_complex_drums",
+          "name": "Modifier range syntax (| V [1.0-3.0] 110)",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 54,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 178
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 178
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:1/4 42\n| V [1.0-3.0] 115\n"
+        },
+        {
+          "id": "drum-10-modifier-unbracketed",
+          "dimension": "dim2_complex_drums",
+          "name": "Modifier without brackets (| V 1.5 2.5 110)",
+          "expectedCategory": "syntax_edge_case",
+          "promptAdherence": "syntax_drift",
+          "tokens": 52,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 114
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 114
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:1/2 42\n| V 1.5 2.5 110\n"
+        }
+      ]
+    },
+    "dim3_translation_reconstruction": {
+      "name": "Translation & Reconstruction",
+      "description": "Roundtrip fidelity, origin timeline indexing, track header validation, markdown fencing",
+      "totalRuns": 10,
+      "strictPass": 8,
+      "loosePass": 9,
+      "runs": [
+        {
+          "id": "trans-01-clean-roundtrip",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Clean two-track composition for exact roundtrip fidelity",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 143,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 161
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 161
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 110\n@TIMESIG 4/4\n@TRACK 1 Bass\n@CHANNEL 1\n@PROGRAM 33\n1.0 C2 100 1.0\n2.0 G2 95 1.0\n3.0 A2 100 1.0\n4.0 F2 95 1.0\n\n@TRACK 2 Keys\n@CHANNEL 2\n@PROGRAM 4\n1.0 C4,E4,G4 80 2.0\n3.0 A3,C4,E4 80 2.0\n"
+        },
+        {
+          "id": "trans-02-origin-mismatch",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Origin mismatch (@ORIGIN 1 declared, but events start at 0.0)",
+          "expectedCategory": "semantic_timing_offset",
+          "promptAdherence": "index_confusion",
+          "tokens": 68,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 76
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 76
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@ORIGIN 1\n@TRACK 1 Piano\n@CHANNEL 1\n0.0 C4 80 1.0\n1.0 E4 80 1.0\n2.0 G4 80 1.0\n"
+        },
+        {
+          "id": "trans-03-track-name-with-space",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Track name with space (@TRACK 1 Acoustic Guitar without underscore)",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "regex_violation",
+          "tokens": 39,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 69
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 69
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Acoustic Guitar\n@CHANNEL 1\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "trans-04-missing-channel-track2",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Multi-track missing @CHANNEL on Track 2 (strict error, loose warning)",
+          "expectedCategory": "recoverable_strict_error",
+          "promptAdherence": "missing_declaration",
+          "tokens": 57,
+          "strict": {
+            "ok": false,
+            "error": {
+              "message": "LMP: Each track must declare @CHANNEL before events.",
+              "line": 8,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [
+              "LMP [loose]: Track 2 (Flute) missing @CHANNEL; assuming channel 1"
+            ],
+            "error": null,
+            "midiLength": 89
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C4 80 1.0\n\n@TRACK 2 Flute\n1.0 G5 85 1.0\n"
+        },
+        {
+          "id": "trans-05-tempo-before-track",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "TEMPO meta-event placed before @TRACK 1 declaration",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "ordering_error",
+          "tokens": 42,
+          "strict": {
+            "ok": false,
+            "error": {
+              "message": "LMP: Events must appear after at least one @TRACK declaration.",
+              "line": 2,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "loose": {
+            "ok": false,
+            "warnings": [],
+            "error": {
+              "message": "LMP: Events must appear after at least one @TRACK declaration.",
+              "line": 2,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "rawLmp": "@LMP 1.0\n1.0 TEMPO 130.0\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "trans-06-triplet-quantization-drift",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Triplet micro-timing precision (1.333, 1.667) across 4 bars",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 102,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 104
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 104
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 C4 80 0.333\n1.333 D4 80 0.333\n1.667 E4 80 0.333\n2.0 F4 80 0.333\n2.333 G4 80 0.333\n2.667 A4 80 0.333\n"
+        },
+        {
+          "id": "trans-07-track-channel-collision",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Two tracks sharing channel 1 with conflicting programs",
+          "expectedCategory": "clean_with_midi_quirk",
+          "promptAdherence": "channel_assignment_overlap",
+          "tokens": 72,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 97
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 97
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n@PROGRAM 0\n1.0 C4 80 1.0\n\n@TRACK 2 Strings\n@CHANNEL 1\n@PROGRAM 48\n1.0 G4 80 1.0\n"
+        },
+        {
+          "id": "trans-08-markdown-fences-wrapping",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "LMP wrapped inside ```lmp ... ``` markdown fences with prose preamble",
+          "expectedCategory": "preprocessed_clean",
+          "promptAdherence": "format_adherence",
+          "tokens": 72,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 75
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 75
+          },
+          "rawLmp": "Here is your requested LMP music file:\n\n```lmp\n@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C4,E4,G4 80 2.0\n```\n\nEnjoy the MIDI playback!\n"
+        },
+        {
+          "id": "trans-09-markdown-numbered-list-comment",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Numbered list prefix in trailing comments (e.g. 1. Verse progression)",
+          "expectedCategory": "clean_trailing_filter",
+          "promptAdherence": "markdown_leak",
+          "tokens": 56,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 59
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 59
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C4 80 1.0\n\nStructure notes:\n1. Verse progression\n2. Chorus progression\n"
+        },
+        {
+          "id": "trans-10-multitrack-inherit-all",
+          "dimension": "dim3_translation_reconstruction",
+          "name": "Track state inheritance using @INHERIT 1",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 80,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 97
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 97
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Master\n@CHANNEL 1\n@DEFAULT_VEL 85\n@DEFAULT_DUR 0.5\n@PROGRAM 0\n1.0 C4 85 0.5\n\n@TRACK 2 Slave\n@CHANNEL 2\n@INHERIT 1\n2.0 E4\n"
+        }
+      ]
+    },
+    "dim4_production_nuance": {
+      "name": "Production Nuance & Automation",
+      "description": "CC 11 swells, CC 64 sustain, Pitch Bend slides, ordering rules, value clamping",
+      "totalRuns": 10,
+      "strictPass": 8,
+      "loosePass": 10,
+      "runs": [
+        {
+          "id": "prod-01-clean-cc-and-pb",
+          "dimension": "dim4_production_nuance",
+          "name": "Clean CC64 sustain, CC11 expression swell, and Pitch Bend glide",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 168,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 145
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 145
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 70\n@TRACK 1 Ambient_Pad\n@CHANNEL 1\n@PROGRAM 89\n@PBRANGE 12\n\n// CC Sustain Down\n1.0 CC 64 127\n// CC11 Expression Swell\n1.0 CC 11 30\n2.0 CC 11 65\n3.0 CC 11 110\n4.0 CC 11 40\n\n// Pitch Bend slide\n1.0 PB 0.0\n2.5 PB 2.0\n3.5 PB 4.0\n4.0 PB 0.0\n\n1.0 C3,G3,D4 _ 4.0\n"
+        },
+        {
+          "id": "prod-02-inverted-same-beat-ordering",
+          "dimension": "dim4_production_nuance",
+          "name": "Same-beat event ordering inverted (Note written before CC and PB)",
+          "expectedCategory": "clean_compiler_reordered",
+          "promptAdherence": "ordering_drift",
+          "tokens": 101,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 87
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 87
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n// Note declared first\n1.0 C4 80 1.0\n// CC declared after note on beat 1.0\n1.0 CC 64 127\n// PB declared after note on beat 1.0\n1.0 PB 1.0\n"
+        },
+        {
+          "id": "prod-03-hanging-pitch-bend",
+          "dimension": "dim4_production_nuance",
+          "name": "Hanging Pitch Bend (PB 2.0 without explicit reset to 0.0)",
+          "expectedCategory": "clean_auto_reset",
+          "promptAdherence": "hanging_state",
+          "tokens": 80,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 91
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 91
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Lead\n@CHANNEL 1\n@PBRANGE 2\n1.0 PB 2.0\n1.0 C4 80 1.0\n2.0 D4 80 1.0\n// Model omitted PB 0.0 reset!\n"
+        },
+        {
+          "id": "prod-04-underscore-in-cc",
+          "dimension": "dim4_production_nuance",
+          "name": "Underscore placeholder in CC row (1.0 CC 64 _ or 1.0 CC _ 127)",
+          "expectedCategory": "syntax_strict_error",
+          "promptAdherence": "spec_misunderstanding",
+          "tokens": 46,
+          "strict": {
+            "ok": false,
+            "error": {
+              "message": "LMP: CC requires numeric controller number and value; underscore is invalid.",
+              "line": 5,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [
+              "LMP [loose]: Invalid CC row at beat 1 (underscore invalid); skipping"
+            ],
+            "error": null,
+            "midiLength": 59
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 CC 64 _\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "prod-05-missing-col4-in-cc",
+          "dimension": "dim4_production_nuance",
+          "name": "Missing column 4 in CC row (1.0 CC 64)",
+          "expectedCategory": "syntax_strict_error",
+          "promptAdherence": "column_omission",
+          "tokens": 45,
+          "strict": {
+            "ok": false,
+            "error": {
+              "message": "LMP: CC requires both controller number (column 3) and value (column 4).",
+              "line": 5,
+              "col": 1
+            },
+            "midiLength": 0
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [
+              "LMP [loose]: Invalid CC row at beat 1 (missing controller number or value); skipping"
+            ],
+            "error": null,
+            "midiLength": 59
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 CC 64\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "prod-06-pb-exceeding-pbrange",
+          "dimension": "dim4_production_nuance",
+          "name": "Pitch Bend exceeding @PBRANGE (PB 7.0 when @PBRANGE is 2)",
+          "expectedCategory": "clean_clamped",
+          "promptAdherence": "parameter_overflow",
+          "tokens": 52,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 82
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 82
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Lead\n@CHANNEL 1\n@PBRANGE 2\n1.0 PB 7.0\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "prod-07-pb-with-duration-col4",
+          "dimension": "dim4_production_nuance",
+          "name": "Pitch bend with superfluous duration in Col 4 (1.0 PB 2.0 1.0)",
+          "expectedCategory": "clean_col4_ignored",
+          "promptAdherence": "syntax_drift",
+          "tokens": 51,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 82
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 82
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Lead\n@CHANNEL 1\n1.0 PB 2.0 1.0\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "prod-08-cc-repeating-loop-hallucination",
+          "dimension": "dim4_production_nuance",
+          "name": "Hallucinated repeating loop for CC (1.0-5.0:1/4 CC 11 60)",
+          "expectedCategory": "syntax_error",
+          "promptAdherence": "feature_generalization_hallucination",
+          "tokens": 42,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 114
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 114
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0-5.0:1/4 CC 11 60\n"
+        },
+        {
+          "id": "prod-09-cc-out-of-range-value",
+          "dimension": "dim4_production_nuance",
+          "name": "CC value out of 0-127 range (1.0 CC 11 150)",
+          "expectedCategory": "clean_clamped",
+          "promptAdherence": "range_overflow",
+          "tokens": 47,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 63
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 63
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 CC 11 150\n1.0 C4 80 1.0\n"
+        },
+        {
+          "id": "prod-10-multiple-cc-same-beat",
+          "dimension": "dim4_production_nuance",
+          "name": "Multiple simultaneous CC messages on beat 1.0 (CC64, CC11, CC1)",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 67,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 71
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 71
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 CC 64 127\n1.0 CC 11 100\n1.0 CC 1 64\n1.0 C4 80 1.0\n"
+        }
+      ]
+    },
+    "dim5_polyrhythm_odd_meter": {
+      "name": "Polyrhythm & Odd Meter",
+      "description": "7/8, 5/4 meter, bar math, 3:2 and 4:3 polyrhythms, time signature transitions",
+      "totalRuns": 10,
+      "strictPass": 10,
+      "loosePass": 10,
+      "runs": [
+        {
+          "id": "odd-01-clean-7-8-progression",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Clean 7/8 progressive metal groove (3.5 quarter notes per bar)",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 182,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 147
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 147
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Drums\n@CHANNEL 10\n@DEFAULT_DUR 0.25\n\n// Bar 1 (beats 1.0 to 4.5)\n1.0 36 120\n1.5 36 110\n2.0 38 125\n2.5 36 110\n3.0 36 120\n3.25 36 115\n\n// Bar 2 (starts at beat 4.5, spans to 8.0)\n4.5 36 120\n5.0 36 110\n5.5 38 125\n6.0 36 110\n6.5 36 120\n6.75 36 115\n"
+        },
+        {
+          "id": "odd-02-bar-math-hallucination-7-8",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Bar math error: assuming 7/8 bar is 7.0 beats (Bar 2 starting at beat 8.0)",
+          "expectedCategory": "severe_musical_error",
+          "promptAdherence": "rhythmic_math_hallucination",
+          "tokens": 145,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 121
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 121
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Drums\n@CHANNEL 10\n// LLM assumes 7/8 means 7 quarter note beats per measure!\n1.0 36 120\n2.0 38 120\n3.0 36 120\n4.0 38 120\n5.0 36 120\n6.0 38 120\n7.0 36 120\n// Bar 2 starts at beat 8.0 instead of 4.5!\n8.0 36 120\n"
+        },
+        {
+          "id": "odd-03-clean-5-4-jazz",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Clean 5/4 jazz comping (5.0 quarter notes per bar)",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 211,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 248
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 248
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 160\n@TIMESIG 5/4\n@TRACK 1 Piano\n@CHANNEL 1\n// Bar 1: beats 1.0 to 6.0 (span = 5.0 beats)\n1.0 C3,E3,G3,Bb3 80 1.5\n2.5 F3,A3,C4,Eb4 80 1.5\n4.0 G3,B3,D4,F4 80 2.0\n\n// Bar 2: starts at beat 6.0\n6.0 C3,E3,G3,Bb3 80 1.5\n7.5 F3,A3,C4,Eb4 80 1.5\n9.0 G3,B3,D4,F4 80 2.0\n"
+        },
+        {
+          "id": "odd-04-loop-in-7-8-fractional-boundary",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Repeating loop spanning 7/8 bar (1.0-4.5:1/4 42)",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 83,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 162
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 162
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Drums\n@CHANNEL 10\n// 1.0 to 4.5 step 0.25 generates 14 sixteenth notes (7 eighths)\n1.0-4.5:1/4 42 90 0.2\n"
+        },
+        {
+          "id": "odd-05-loop-decimal-in-7-8",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Repeating loop with decimal interval in 7/8 (1.0-4.5:0.5 42)",
+          "expectedCategory": "syntax_strict_error",
+          "promptAdherence": "common_llm_slip",
+          "tokens": 51,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 112
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 112
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-4.5:0.5 42 90 0.2\n"
+        },
+        {
+          "id": "odd-06-triplet-polyrhythm-3-against-2",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Triplet polyrhythm (3 against 2) within quarter notes",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 83,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 85
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 85
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Lead\n@CHANNEL 1\n1.0 C5 90 0.333\n1.333 D5 90 0.333\n1.667 E5 90 0.333\n2.0 G5 95 1.0\n"
+        },
+        {
+          "id": "odd-07-cross-meter-polyrhythm-4-against-3",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Cross-track polyrhythm: 4 beats against 3 dotted eighths",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 150,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 166
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 166
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Straight_Pulse\n@CHANNEL 1\n1.0 C4 80 0.8\n2.0 C4 80 0.8\n3.0 C4 80 0.8\n4.0 C4 80 0.8\n\n@TRACK 2 Dotted_Cross_Rhythm\n@CHANNEL 2\n1.0 E4 90 0.7\n1.75 G4 90 0.7\n2.5 B4 90 0.7\n3.25 D5 90 0.7\n"
+        },
+        {
+          "id": "odd-08-timesig-shift-mid-piece",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Mid-stream time signature modulation: 4/4 to 7/8 then back to 4/4",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 328,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 201
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 201
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Synth\n@CHANNEL 1\n\n// Measure 1: 4/4 (beats 1.0 to 5.0)\n1.0 C4 80 1.0\n2.0 D4 80 1.0\n3.0 E4 80 1.0\n4.0 F4 80 1.0\n\n// Measure 2: 7/8 (beat 5.0, spans 3.5 beats to 8.5)\n5.0 TS 7 8\n5.0 G4 85 0.5\n5.5 A4 85 0.5\n6.0 B4 85 0.5\n6.5 C5 85 0.5\n7.0 D5 85 0.5\n7.5 E5 85 0.5\n8.0 F5 85 0.5\n\n// Measure 3: Return to 4/4 at beat 8.5\n8.5 TS 4 4\n8.5 G5 90 1.0\n9.5 A5 90 1.0\n10.5 B5 90 1.0\n11.5 C6 95 1.0\n"
+        },
+        {
+          "id": "odd-09-asymmetric-accent-subdivision-7-8",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Asymmetric 2+2+3 accent subdivision in 7/8 groove",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 155,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 112
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 112
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Bass\n@CHANNEL 1\n// 2 + 2 + 3 grouping: downbeats at 1.0, 2.0, 3.0\n1.0 D2 110 0.5\n1.5 D2 75 0.5\n2.0 F2 110 0.5\n2.5 F2 75 0.5\n3.0 G2 115 0.5\n3.5 G2 80 0.5\n4.0 A2 80 0.5\n"
+        },
+        {
+          "id": "odd-10-mixed-fractional-subdivision-5-4",
+          "dimension": "dim5_polyrhythm_odd_meter",
+          "name": "Mixed eighth and triplet subdivisions across 5/4 measures",
+          "expectedCategory": "clean",
+          "promptAdherence": "high",
+          "tokens": 135,
+          "strict": {
+            "ok": true,
+            "error": null,
+            "midiLength": 124
+          },
+          "loose": {
+            "ok": true,
+            "warnings": [],
+            "error": null,
+            "midiLength": 124
+          },
+          "rawLmp": "@LMP 1.0\n@BPM 150\n@TIMESIG 5/4\n@TRACK 1 Marimba\n@CHANNEL 1\n1.0 C4 85 0.5\n1.5 D4 85 0.5\n2.0 E4 85 0.333\n2.333 F4 85 0.333\n2.667 G4 85 0.333\n3.0 A4 90 1.0\n4.0 B4 90 1.0\n5.0 C5 95 1.0\n"
+        }
+      ]
+    }
+  }
+}

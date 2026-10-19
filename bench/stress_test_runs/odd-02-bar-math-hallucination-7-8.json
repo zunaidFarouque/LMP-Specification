@@ -1,0 +1,20 @@
+{
+  "id": "odd-02-bar-math-hallucination-7-8",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Bar math error: assuming 7/8 bar is 7.0 beats (Bar 2 starting at beat 8.0)",
+  "expectedCategory": "severe_musical_error",
+  "promptAdherence": "rhythmic_math_hallucination",
+  "tokens": 145,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 121
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 121
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Drums\n@CHANNEL 10\n// LLM assumes 7/8 means 7 quarter note beats per measure!\n1.0 36 120\n2.0 38 120\n3.0 36 120\n4.0 38 120\n5.0 36 120\n6.0 38 120\n7.0 36 120\n// Bar 2 starts at beat 8.0 instead of 4.5!\n8.0 36 120\n"
+}

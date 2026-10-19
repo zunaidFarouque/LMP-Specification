@@ -1,0 +1,20 @@
+{
+  "id": "trans-02-origin-mismatch",
+  "dimension": "dim3_translation_reconstruction",
+  "name": "Origin mismatch (@ORIGIN 1 declared, but events start at 0.0)",
+  "expectedCategory": "semantic_timing_offset",
+  "promptAdherence": "index_confusion",
+  "tokens": 68,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 76
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 76
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@ORIGIN 1\n@TRACK 1 Piano\n@CHANNEL 1\n0.0 C4 80 1.0\n1.0 E4 80 1.0\n2.0 G4 80 1.0\n"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "prod-07-pb-with-duration-col4",
+  "dimension": "dim4_production_nuance",
+  "name": "Pitch bend with superfluous duration in Col 4 (1.0 PB 2.0 1.0)",
+  "expectedCategory": "clean_col4_ignored",
+  "promptAdherence": "syntax_drift",
+  "tokens": 51,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 82
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 82
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Lead\n@CHANNEL 1\n1.0 PB 2.0 1.0\n1.0 C4 80 1.0\n"
+}

@@ -34,6 +34,8 @@ type PianoRollProps = {
   data: PianoRollData;
   sourceMap: Map<string, number> | null;
   onHighlightLine: (line: number | null) => void;
+  currentBeat?: number | null;
+  isPlaying?: boolean;
 };
 
 type PitchOrderItem = number | 'break';
@@ -112,7 +114,13 @@ function sourceMapKey(beat: number, trackIndex: number, midi: number): string {
   return `${b}_${trackIndex}_${midi}`;
 }
 
-export function PianoRoll({ data, sourceMap, onHighlightLine }: PianoRollProps) {
+export function PianoRoll({
+  data,
+  sourceMap,
+  onHighlightLine,
+  currentBeat,
+  isPlaying,
+}: PianoRollProps) {
   const [viewport, setViewport] = useState<PianoRollViewport>(() =>
     resetViewport(data.startBeat)
   );
@@ -662,7 +670,7 @@ export function PianoRoll({ data, sourceMap, onHighlightLine }: PianoRollProps) 
           onMouseDown={handleLabelResizeStart}
           className="shrink-0 w-1 bg-slate-700 hover:bg-slate-500 cursor-col-resize active:bg-slate-400 transition-colors self-stretch"
         />
-        <div className="flex-1 min-w-0 flex flex-col" style={{ minWidth: 0 }}>
+        <div className="flex-1 min-w-0 flex flex-col relative" style={{ minWidth: 0 }}>
           <div
             style={{
               position: 'relative',
@@ -706,10 +714,42 @@ export function PianoRoll({ data, sourceMap, onHighlightLine }: PianoRollProps) 
               height: contentHeight,
               clipPath: 'inset(0 0 0 0)',
             }}
-            className="shrink-0"
+            className="shrink-0 relative"
           >
             <canvas ref={canvasRef} style={{ display: 'block' }} />
           </div>
+
+          {/* Active playhead cursor synchronized to WebAudio playback */}
+          {currentBeat != null && currentBeat >= startBeat && currentBeat <= endBeat + 1 && (
+            <div
+              style={{
+                position: 'absolute',
+                left: (currentBeat - startBeat) * viewport.pixelsPerBeat,
+                top: 0,
+                bottom: 0,
+                width: 2,
+                background: '#f59e0b',
+                boxShadow: '0 0 8px rgba(245, 158, 11, 0.9)',
+                pointerEvents: 'none',
+                zIndex: 25,
+                transition: isPlaying ? 'none' : 'left 0.08s ease-out',
+              }}
+            >
+              {/* Playhead arrow head on the ruler */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: -4,
+                  width: 0,
+                  height: 0,
+                  borderLeft: '5px solid transparent',
+                  borderRight: '5px solid transparent',
+                  borderTop: '7px solid #f59e0b',
+                }}
+              />
+            </div>
+          )}
         </div>
         </div>
       </div>

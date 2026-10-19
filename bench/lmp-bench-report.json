@@ -1,0 +1,292 @@
+{
+  "summary": {
+    "totalEvaluated": 7,
+    "syntaxValidityRateStrict": 100,
+    "syntaxValidityRateLoose": 100,
+    "averageTokenCompressionVsJson": 4.04,
+    "averageTokenCompressionVsCsv": 3.83,
+    "averageNoteF1Fidelity": 100
+  },
+  "results": [
+    {
+      "id": "pop-chords-lead",
+      "title": "Pop Progression & Vocal Lead",
+      "genre": "Pop",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 248,
+          "chars": 360,
+          "bytes": 360,
+          "lines": 32
+        },
+        "json": {
+          "tokens": 1229,
+          "chars": 4585,
+          "bytes": 4585,
+          "lines": 210
+        },
+        "csv": {
+          "tokens": 1150,
+          "chars": 1815,
+          "bytes": 1815,
+          "lines": 64
+        }
+      },
+      "tcr": {
+        "vsJson": 4.96,
+        "vsCsv": 4.64,
+        "charRatioJson": 12.74
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 27,
+        "totalOriginal": 27,
+        "totalRoundtrip": 27
+      }
+    },
+    {
+      "id": "edm-club-groove",
+      "title": "EDM Four-on-the-Floor with Rolling Hi-Hats",
+      "genre": "Electronic",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 315,
+          "chars": 513,
+          "bytes": 513,
+          "lines": 39
+        },
+        "json": {
+          "tokens": 2187,
+          "chars": 8128,
+          "bytes": 8128,
+          "lines": 364
+        },
+        "csv": {
+          "tokens": 1985,
+          "chars": 3147,
+          "bytes": 3147,
+          "lines": 108
+        }
+      },
+      "tcr": {
+        "vsJson": 6.94,
+        "vsCsv": 6.3,
+        "charRatioJson": 15.84
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 49,
+        "totalOriginal": 49,
+        "totalRoundtrip": 49
+      }
+    },
+    {
+      "id": "classical-invention",
+      "title": "Bach Two-Part Polyphonic Invention",
+      "genre": "Classical",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 277,
+          "chars": 383,
+          "bytes": 383,
+          "lines": 42
+        },
+        "json": {
+          "tokens": 1103,
+          "chars": 4104,
+          "bytes": 4104,
+          "lines": 189
+        },
+        "csv": {
+          "tokens": 1036,
+          "chars": 1655,
+          "bytes": 1655,
+          "lines": 58
+        }
+      },
+      "tcr": {
+        "vsJson": 3.98,
+        "vsCsv": 3.74,
+        "charRatioJson": 10.72
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 24,
+        "totalOriginal": 24,
+        "totalRoundtrip": 24
+      }
+    },
+    {
+      "id": "jazz-blues-comping",
+      "title": "Jazz Blues Swing & Syncopated Comping",
+      "genre": "Jazz",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 271,
+          "chars": 399,
+          "bytes": 399,
+          "lines": 32
+        },
+        "json": {
+          "tokens": 1615,
+          "chars": 6036,
+          "bytes": 6036,
+          "lines": 273
+        },
+        "csv": {
+          "tokens": 1492,
+          "chars": 2363,
+          "bytes": 2363,
+          "lines": 82
+        }
+      },
+      "tcr": {
+        "vsJson": 5.96,
+        "vsCsv": 5.51,
+        "charRatioJson": 15.13
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 36,
+        "totalOriginal": 36,
+        "totalRoundtrip": 36
+      }
+    },
+    {
+      "id": "tabla-keherwa-groove",
+      "title": "Indian Classical Tabla (Keherwa Taal)",
+      "genre": "World / Indian",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 210,
+          "chars": 423,
+          "bytes": 423,
+          "lines": 31
+        },
+        "json": {
+          "tokens": 402,
+          "chars": 1451,
+          "bytes": 1451,
+          "lines": 71
+        },
+        "csv": {
+          "tokens": 394,
+          "chars": 630,
+          "bytes": 630,
+          "lines": 23
+        }
+      },
+      "tcr": {
+        "vsJson": 1.91,
+        "vsCsv": 1.88,
+        "charRatioJson": 3.43
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 8,
+        "totalOriginal": 8,
+        "totalRoundtrip": 8
+      }
+    },
+    {
+      "id": "metal-polyrhythm-seven-eight",
+      "title": "Polyrhythmic Metal (7/8 Meter)",
+      "genre": "Metal / Progressive",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 249,
+          "chars": 430,
+          "bytes": 430,
+          "lines": 34
+        },
+        "json": {
+          "tokens": 727,
+          "chars": 2642,
+          "bytes": 2642,
+          "lines": 126
+        },
+        "csv": {
+          "tokens": 694,
+          "chars": 1109,
+          "bytes": 1109,
+          "lines": 40
+        }
+      },
+      "tcr": {
+        "vsJson": 2.92,
+        "vsCsv": 2.79,
+        "charRatioJson": 6.14
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 15,
+        "totalOriginal": 15,
+        "totalRoundtrip": 15
+      }
+    },
+    {
+      "id": "ambient-expression-drone",
+      "title": "Ambient Soundscape with CC & Pitch Bend",
+      "genre": "Ambient",
+      "strictValid": true,
+      "looseValid": true,
+      "stats": {
+        "lmp": {
+          "tokens": 203,
+          "chars": 337,
+          "bytes": 337,
+          "lines": 26
+        },
+        "json": {
+          "tokens": 320,
+          "chars": 1139,
+          "bytes": 1139,
+          "lines": 57
+        },
+        "csv": {
+          "tokens": 399,
+          "chars": 657,
+          "bytes": 657,
+          "lines": 24
+        }
+      },
+      "tcr": {
+        "vsJson": 1.58,
+        "vsCsv": 1.97,
+        "charRatioJson": 3.38
+      },
+      "fidelity": {
+        "precision": 1,
+        "recall": 1,
+        "f1": 1,
+        "matched": 6,
+        "totalOriginal": 6,
+        "totalRoundtrip": 6
+      }
+    }
+  ]
+}

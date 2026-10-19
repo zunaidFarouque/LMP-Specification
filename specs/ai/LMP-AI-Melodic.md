@@ -48,7 +48,7 @@ Each event: `[Beat] [Pitch] [Velocity] [Length]`
 - **SPN:** C4 = 60. Use sharps (F#) or flats (Gb). Case-insensitive for reserved tokens.
 - **R (Rest):** Silence marker. No velocity or length. Use in Legato tracks for rests.
 - **CC:** Column 3 = controller number, Column 4 = value. Both required. Common: 64 (sustain), 11 (expression). Example: `1.0 CC 64 127`.
-- **PB:** Column 3 = bend in semitones (e.g. 1.0 up, -1.0 down, 0.0 center). Use `PB 0.0` to return to center before subsequent notes; pitch bend does not reset automatically.
+- **PB:** Column 3 = bend in semitones (e.g. 1.0 up, -1.0 down, 0.0 center). Pitch bends automatically reset to center (0.0) at the end of the note duration, but explicit `PB 0.0` can also be emitted.
 - **TEMPO:** `X.X TEMPO 120.0`
 - **TS:** `X.X TS 7 8` (time signature change)
 
@@ -61,6 +61,8 @@ Declare before events. Each track needs `@TRACK` and `@CHANNEL`.
 - `@LMP 1.0` — Version (include at top)
 - `@BPM [float]` — Tempo
 - `@TIMESIG [int]/[int]` — e.g. `@TIMESIG 4/4` or `@TIMESIG 7/8`
+- `@ORIGIN [0|1]` — Timeline start index (default `1` for 1-based downbeats; `0` for 0-based DAWs)
+- `@SEED [int]` — Deterministic PRNG seed for `@RULE VEL` humanization
 - `@TRACK [int] [Name]` — Name required (alphanumeric, underscores)
 - `@CHANNEL [int]` — 1–16 (avoid 10 for melodic; it is reserved for drums)
 - `@PROGRAM [int]` — MIDI patch (0–127). Optional.
@@ -140,11 +142,11 @@ For Legato: give the final note of a phrase explicit duration in Column 4.
 
 ## 11. Output Checklist
 
+- Wrap code blocks inside \`\`\`lmp ... \`\`\` code fence for instant player detection
 - Begin with `@LMP 1.0`
-- Declare `@TRACK` and `@CHANNEL` before any events
-- Use absolute beat numbers (0.0, 1.0, 2.5)
+- Declare `@TRACK [id] [Name]` and `@CHANNEL [1-16]` before any events
+- Use absolute beat numbers (0.0, 1.0, 2.5). Beat 1.0 = downbeat in default `@ORIGIN 1`
 - Use `//` for inline comments when helpful
 - Omit velocity and duration when defaults apply; use `_` when omitting velocity but specifying length
 - Use `R` for rests in Legato tracks; give final Legato note explicit duration
-- Use `PB 0.0` before returning to normal pitch after a bend
-- Output only valid LMP; no prose mixed in
+- Output only valid LMP; no conversational prose mixed in

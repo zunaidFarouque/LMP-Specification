@@ -54,6 +54,12 @@ describe('buildState', () => {
     expect(s.tracks[0]).toMatchObject({ id: 1, name: 'Piano' });
   });
 
+  test('@TRACK with multi-word name joins tokens with underscores', () => {
+    const s = parse(['@TRACK 1 Acoustic Guitar']);
+    expect(s.tracks).toHaveLength(1);
+    expect(s.tracks[0]).toMatchObject({ id: 1, name: 'Acoustic_Guitar' });
+  });
+
   test('@TRACK without name throws', () => {
     expect(() => parse(['@TRACK 1'])).toThrow(/track.*name|name.*mandatory|invalid/i);
   });

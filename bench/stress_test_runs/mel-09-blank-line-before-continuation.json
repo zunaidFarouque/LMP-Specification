@@ -1,0 +1,26 @@
+{
+  "id": "mel-09-blank-line-before-continuation",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Blank line before + continuation (triggers orphaned continuation error)",
+  "expectedCategory": "syntax_error",
+  "promptAdherence": "formatting_error",
+  "tokens": 49,
+  "strict": {
+    "ok": false,
+    "error": {
+      "message": "LMP: Orphaned same-beat continuation (+).",
+      "line": 7,
+      "col": 1
+    },
+    "midiLength": 0
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [
+      "LMP [loose]: Detached continuation (+) after blank line at line 7; attaching to beat 1"
+    ],
+    "error": null,
+    "midiLength": 76
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C3 _ 4.0\n\n+ E4,G4 _ 2.0\n"
+}

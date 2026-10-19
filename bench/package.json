@@ -1,0 +1,21 @@
+{
+  "name": "lmp-bench",
+  "version": "2.0.0",
+  "description": "LMP-Bench: Scientific evaluation harness measuring Syntax Validity Rate (SVR), Token Compression Ratio (TCR), and Reconstruction Fidelity for Lean Musical Protocol",
+  "main": "src/cli.js",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/cli.js",
+    "bench": "bun run src/cli.js",
+    "test": "bun test"
+  },
+  "keywords": [
+    "lmp",
+    "benchmark",
+    "music-ai",
+    "token-efficiency",
+    "evaluation"
+  ],
+  "author": "Zunaid Farouque",
+  "license": "MIT"
+}

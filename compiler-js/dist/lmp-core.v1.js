@@ -626,9 +626,6 @@ var require_midi_file = __commonJS({
 });
 
 // src/preprocess.js
-function isBlank(line) {
-  return line.trim() === "";
-}
 function stripComment(line) {
   const i = line.indexOf("//");
   return i === -1 ? line : line.slice(0, i);
@@ -641,26 +638,70 @@ function classify(tokens) {
   if (first === "|") return "modifier";
   return "event";
 }
+var MARKDOWN_LIST_PREFIX_REGEX = /^\s*\d+[\.)](?!\d)/;
 function preprocess(lmpText) {
-  const lines = lmpText.split(/\n/);
+  const lines = lmpText.split(/\r?\n/);
   const result = [];
   let trailing = false;
+  let hadBlank = false;
+  const hasDirectives = /^@[A-Za-z]/im.test(lmpText);
+  let seenDirective = !hasDirectives;
+  const hasCodeFences = /^(`{3,}|~{3,})/m.test(lmpText);
+  let inCodeFence = false;
   for (let i = 0; i < lines.length; i++) {
-    const raw = stripComment(lines[i]);
-    const trimmed = raw.trim();
-    const tokens = trimmed ? trimmed.split(/\s+/) : [];
-    if (isBlank(raw)) {
+    const rawLine = lines[i];
+    const isPureBlank = rawLine.trim() === "";
+    if (isPureBlank) {
       trailing = true;
+      hadBlank = true;
       continue;
     }
+    const raw = stripComment(rawLine);
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      continue;
+    }
+    if (/^(`{3,}|~{3,})/.test(trimmed)) {
+      inCodeFence = !inCodeFence;
+      trailing = true;
+      hadBlank = true;
+      continue;
+    }
+    if (hasCodeFences && !inCodeFence) {
+      continue;
+    }
+    if (!seenDirective) {
+      if (trimmed.startsWith("@")) {
+        seenDirective = true;
+      } else {
+        continue;
+      }
+    }
     if (trailing) {
-      const startsLMP = /^\s*@|^\s*\d|^\s*\+|^\s*\|/.test(raw);
+      if (MARKDOWN_LIST_PREFIX_REGEX.test(raw)) {
+        continue;
+      }
+      const startsLMP = /^\s*(@|\d|\+|\|)/.test(raw);
       if (!startsLMP) continue;
       trailing = false;
     }
+    let lineToTokenize = trimmed;
+    if (!trimmed.startsWith("|")) {
+      lineToTokenize = trimmed.replace(/\s*,\s*/g, ",");
+    }
+    const tokens = lineToTokenize.split(/\s+/);
     if (tokens.length === 0) continue;
     const type = classify(tokens);
-    result.push({ type, tokens, sourceLine: i + 1 });
+    const colMatch = rawLine.match(/^\s*/);
+    const sourceCol = (colMatch ? colMatch[0].length : 0) + 1;
+    result.push({
+      type,
+      tokens,
+      sourceLine: i + 1,
+      sourceCol,
+      blankBefore: hadBlank
+    });
+    hadBlank = false;
   }
   return result;
 }
@@ -671,6 +712,19 @@ var DEFAULT_TIMESIG = { num: 4, denom: 4 };
 var DEFAULT_PBRANGE = 2;
 var TRACK_NAME_REGEX = /^[A-Za-z0-9_]+$/;
 var MAP_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
+var LMPError = class extends Error {
+  constructor(message, lineInfo = {}) {
+    super(message);
+    this.name = "LMPError";
+    if (lineInfo.sourceLine != null) this.line = lineInfo.sourceLine;
+    else if (lineInfo.line != null) this.line = lineInfo.line;
+    if (lineInfo.sourceCol != null) this.col = lineInfo.sourceCol;
+    else if (lineInfo.col != null) this.col = lineInfo.col;
+  }
+};
+function createError(message, lineInfo) {
+  return new LMPError(message, lineInfo);
+}
 function buildState(lines, options = {}) {
   const { loose = false, warnings = [] } = options;
   const state = {
@@ -678,14 +732,17 @@ function buildState(lines, options = {}) {
     bpm: void 0,
     timesig: { ...DEFAULT_TIMESIG },
     ppqn: DEFAULT_PPQN,
+    origin: void 0,
+    seed: void 0,
     tracks: [],
     map: /* @__PURE__ */ Object.create(null)
   };
   let currentTrackIndex = -1;
-  for (const { type, tokens } of lines) {
+  for (const line of lines) {
+    const { type, tokens } = line;
     if (type === "event" || type === "continuation" || type === "modifier") {
       if (state.tracks.length === 0) {
-        throw new Error("LMP: Events must appear after at least one @TRACK declaration.");
+        throw createError("LMP: Events must appear after at least one @TRACK declaration.", line);
       }
       const track = state.tracks[currentTrackIndex];
       if (track && track.channel === void 0) {
@@ -693,7 +750,7 @@ function buildState(lines, options = {}) {
           track.channel = 1;
           warnings.push(`LMP [loose]: Track ${track.id} (${track.name}) missing @CHANNEL; assuming channel 1`);
         } else {
-          throw new Error("LMP: Each track must declare @CHANNEL before events.");
+          throw createError("LMP: Each track must declare @CHANNEL before events.", line);
         }
       }
       continue;
@@ -707,6 +764,22 @@ function buildState(lines, options = {}) {
         break;
       case "@BPM":
         if (args[0] !== void 0) state.bpm = parseFloat(args[0], 10);
+        break;
+      case "@ORIGIN":
+        if (args[0] !== void 0) {
+          const o = parseInt(args[0], 10);
+          if (o === 0 || o === 1) {
+            state.origin = o;
+          } else {
+            throw createError("LMP: @ORIGIN must be 0 or 1.", line);
+          }
+        }
+        break;
+      case "@SEED":
+        if (args[0] !== void 0) {
+          const s = parseInt(args[0], 10);
+          if (!isNaN(s)) state.seed = s;
+        }
         break;
       case "@TIMESIG":
         if (args[0]) {
@@ -726,22 +799,23 @@ function buildState(lines, options = {}) {
         break;
       case "@TRACK": {
         const id = args[0] !== void 0 ? parseInt(args[0], 10) : NaN;
-        const name = args[1];
+        const name = args.length > 1 ? args.slice(1).join("_") : "";
         if (!name || !TRACK_NAME_REGEX.test(name)) {
-          throw new Error("LMP: @TRACK requires a name (alphanumeric and underscores only).");
+          throw createError("LMP: @TRACK requires a name (alphanumeric and underscores only).", line);
         }
         if (isNaN(id)) {
-          throw new Error("LMP: @TRACK requires a track number.");
+          throw createError("LMP: @TRACK requires a track number.", line);
         }
+        const prevTrack = currentTrackIndex >= 0 ? state.tracks[currentTrackIndex] : null;
         state.tracks.push({
           id,
           name,
           channel: void 0,
           program: void 0,
           pbrange: DEFAULT_PBRANGE,
-          defaultVel: void 0,
-          defaultDur: void 0,
-          rules: []
+          defaultVel: prevTrack?.defaultVel,
+          defaultDur: prevTrack?.defaultDur,
+          rules: prevTrack?.rules ? prevTrack.rules.map((r) => ({ ...r })) : []
         });
         currentTrackIndex = state.tracks.length - 1;
         break;
@@ -769,7 +843,7 @@ function buildState(lines, options = {}) {
         if (!pair || !pair.includes("=")) break;
         const [name, val] = pair.split("=").map((s) => s.trim());
         if (!name || !MAP_NAME_REGEX.test(name)) {
-          throw new Error("LMP: @MAP name must be alphanumeric and underscores only, and cannot start with a digit.");
+          throw createError("LMP: @MAP name must be alphanumeric and underscores only, and cannot start with a digit.", line);
         }
         const midi = parseInt(val, 10);
         if (!Number.isNaN(midi) && midi >= 0 && midi <= 127) state.map[name] = midi;
@@ -784,21 +858,21 @@ function buildState(lines, options = {}) {
             warnings.push(`LMP [loose]: @INHERIT from non-existent track ${fromId}; skipping`);
             break;
           }
-          throw new Error("LMP: @INHERIT from non-existent track.");
+          throw createError("LMP: @INHERIT from non-existent track.", line);
         }
         if (fromIdx === currentTrackIndex) {
           if (loose) {
             warnings.push(`LMP [loose]: @INHERIT from same track (${fromId}) is invalid; skipping`);
             break;
           }
-          throw new Error("LMP: @INHERIT from same track is invalid.");
+          throw createError("LMP: @INHERIT from same track is invalid.", line);
         }
         if (fromIdx > currentTrackIndex) {
           if (loose) {
             warnings.push(`LMP [loose]: @INHERIT from track ${fromId} declared later is invalid; skipping`);
             break;
           }
-          throw new Error("LMP: @INHERIT from track declared later is invalid.");
+          throw createError("LMP: @INHERIT from track declared later is invalid.", line);
         }
         const from = state.tracks[fromIdx];
         const list = args[1] ? args[1].toUpperCase().split(",").map((s) => s.trim()) : ["VEL", "DUR", "CHANNEL", "PROGRAM", "PBRANGE", "RULE"];
@@ -862,7 +936,8 @@ var NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B
 var SPN_REGEX = /^([A-G])(#{1,2}|b{1,2})?(-?\d+)$/i;
 function spnToMidi(spn) {
   if (!spn || typeof spn !== "string") return void 0;
-  const m = spn.trim().match(SPN_REGEX);
+  const normalized = spn.trim().replace(/♭/g, "b").replace(/♯/g, "#");
+  const m = normalized.match(SPN_REGEX);
   if (!m) return void 0;
   let noteIndex = NOTE_NAMES.indexOf(m[1].toUpperCase());
   if (noteIndex === -1) return void 0;
@@ -906,6 +981,18 @@ var DEFAULT_VEL = 100;
 var DEFAULT_DUR = 0.25;
 var RESERVED_PITCH = /* @__PURE__ */ new Set(["R", "CC", "PB", "TEMPO", "TS"]);
 var TYPE_ORDER = { cc: 0, pb: 1, note: 2, rest: 3, tempo: 4, ts: 5 };
+function createError2(message, lineInfo) {
+  return new LMPError(message, lineInfo);
+}
+function createRng(seed) {
+  let s = (seed ?? 123456789) >>> 0;
+  return function() {
+    s = s + 1831565813 >>> 0;
+    let t = Math.imul(s ^ s >>> 15, 1 | s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
 function parseBeat(token) {
   const b = parseFloat(token, 10);
   if (Number.isNaN(b) || b < 0) return null;
@@ -933,10 +1020,13 @@ function getRuleForPitch(track, pitchToken) {
   }
   return null;
 }
-function velocityFromRule(track, pitchToken) {
+function velocityFromRule(track, pitchToken, rng) {
   const rule = getRuleForPitch(track, pitchToken);
   if (!rule || !rule.velRange) return void 0;
   const [min, max] = rule.velRange;
+  if (rng) {
+    return Math.floor(min + rng() * (max - min + 1));
+  }
   return Math.floor((min + max) / 2);
 }
 function durationFromRule(track, pitchToken) {
@@ -975,19 +1065,34 @@ function beatsMatch(a, b) {
   return Math.abs(a - b) <= TOLERANCE;
 }
 function applyModifiers(notes, modifierLines) {
-  const velOverrides = /* @__PURE__ */ new Map();
-  const durOverrides = /* @__PURE__ */ new Map();
-  const restBeats = /* @__PURE__ */ new Set();
+  const velRules = [];
+  const durRules = [];
+  const restBeats = [];
+  const restRanges = [];
   for (const { tokens } of modifierLines) {
-    const kind = tokens[1];
+    const kind = (tokens[1] || "").toUpperCase();
     if (kind === "R") {
-      for (let k = 2; k < tokens.length; k++) {
-        const b = parseFloat(tokens[k], 10);
-        if (!Number.isNaN(b)) restBeats.add(b);
+      const rest = tokens.slice(2).join(" ");
+      const clean = rest.replace(/[\[\]]/g, " ");
+      const parts = clean.split(/[\s,]+/);
+      for (const p of parts) {
+        if (!p) continue;
+        const range = p.match(/^([\d.]+)-([\d.]+)$/);
+        if (range) {
+          const start = parseFloat(range[1], 10);
+          const end = parseFloat(range[2], 10);
+          if (!Number.isNaN(start) && !Number.isNaN(end)) {
+            restRanges.push({ start, end });
+          }
+        } else {
+          const b = parseFloat(p, 10);
+          if (!Number.isNaN(b)) restBeats.push(b);
+        }
       }
     } else if (kind === "V") {
       const rest = tokens.slice(2).join(" ");
-      const groups = rest.split(",").map((s) => s.trim());
+      const sanitized = rest.replace(/\[([^\]]+)\]/g, (_, inner) => `[${inner.replace(/,/g, " ")}]`);
+      const groups = sanitized.split(",").map((s) => s.trim());
       for (const g of groups) {
         const parts = g.split(/\s+/);
         const val = parseInt(parts[parts.length - 1], 10);
@@ -998,18 +1103,19 @@ function applyModifiers(notes, modifierLines) {
           if (range) {
             const start = parseFloat(range[1], 10);
             const end = parseFloat(range[2], 10);
-            for (const n of notes) {
-              if (n.beat >= start && n.beat < end) velOverrides.set(n.beat, val);
-            }
+            velRules.push({ type: "range", start, end, val });
           } else {
             const single = parseFloat(spec.replace(/[\[\]]/g, ""), 10);
-            if (!Number.isNaN(single)) velOverrides.set(single, val);
+            if (!Number.isNaN(single)) {
+              velRules.push({ type: "single", target: single, val });
+            }
           }
         }
       }
     } else if (kind === "D") {
       const rest = tokens.slice(2).join(" ");
-      const groups = rest.split(",").map((s) => s.trim());
+      const sanitized = rest.replace(/\[([^\]]+)\]/g, (_, inner) => `[${inner.replace(/,/g, " ")}]`);
+      const groups = sanitized.split(",").map((s) => s.trim());
       for (const g of groups) {
         const parts = g.split(/\s+/);
         const val = parseFloat(parts[parts.length - 1], 10);
@@ -1020,30 +1126,50 @@ function applyModifiers(notes, modifierLines) {
           if (range) {
             const start = parseFloat(range[1], 10);
             const end = parseFloat(range[2], 10);
-            for (const n of notes) {
-              if (n.beat >= start && n.beat < end) durOverrides.set(n.beat, val);
-            }
+            durRules.push({ type: "range", start, end, val });
           } else {
             const single = parseFloat(spec.replace(/[\[\]]/g, ""), 10);
-            if (!Number.isNaN(single)) durOverrides.set(single, val);
+            if (!Number.isNaN(single)) {
+              durRules.push({ type: "single", target: single, val });
+            }
           }
         }
       }
     }
   }
   for (const n of notes) {
-    if (velOverrides.has(n.beat)) n.velocity = velOverrides.get(n.beat);
-    if (durOverrides.has(n.beat)) n.duration = durOverrides.get(n.beat);
+    for (const r of velRules) {
+      if (r.type === "single") {
+        if (beatsMatch(n.beat, r.target)) n.velocity = r.val;
+      } else if (r.type === "range") {
+        if (n.beat >= r.start - TOLERANCE && n.beat < r.end - TOLERANCE) {
+          n.velocity = r.val;
+        }
+      }
+    }
+    for (const r of durRules) {
+      if (r.type === "single") {
+        if (beatsMatch(n.beat, r.target)) n.duration = r.val;
+      } else if (r.type === "range") {
+        if (n.beat >= r.start - TOLERANCE && n.beat < r.end - TOLERANCE) {
+          n.duration = r.val;
+        }
+      }
+    }
   }
   return notes.filter((n) => {
     for (const rb of restBeats) {
       if (beatsMatch(n.beat, rb)) return false;
+    }
+    for (const rr of restRanges) {
+      if (n.beat >= rr.start - TOLERANCE && n.beat < rr.end - TOLERANCE) return false;
     }
     return true;
   });
 }
 function expand(lines, state, options = {}) {
   const { loose = false, warnings = [] } = options;
+  const rng = state.seed !== void 0 ? createRng(state.seed) : void 0;
   const events = [];
   let currentTrackIndex = -1;
   const map = state.map || {};
@@ -1051,8 +1177,26 @@ function expand(lines, state, options = {}) {
   let lastRepeatingNotes = null;
   let pendingModifiers = [];
   for (let i = 0; i < lines.length; i++) {
-    const { type, tokens, sourceLine } = lines[i];
+    const line = lines[i];
+    const { type, tokens, sourceLine, blankBefore } = line;
     if (!tokens.length) continue;
+    if (blankBefore) {
+      if (loose && type === "modifier" && lastRepeatingNotes) {
+        warnings.push(`LMP [loose]: Detached modifier (|) after blank line at line ${sourceLine}; attaching to repeating note`);
+      } else {
+        if (lastRepeatingNotes) {
+          const applied = applyModifiers(lastRepeatingNotes, pendingModifiers);
+          events.push(...applied);
+          lastRepeatingNotes = null;
+          pendingModifiers = [];
+        }
+      }
+      if (loose && type === "continuation" && lastBaseBeat !== null) {
+        warnings.push(`LMP [loose]: Detached continuation (+) after blank line at line ${sourceLine}; attaching to beat ${lastBaseBeat}`);
+      } else {
+        lastBaseBeat = null;
+      }
+    }
     if (type === "header") {
       const key = tokens[0].toUpperCase();
       const args = tokens.slice(1);
@@ -1071,13 +1215,33 @@ function expand(lines, state, options = {}) {
           if (p >= 0 && p <= 127) state.tracks[currentTrackIndex].program = p;
         }
       }
+      if (lastRepeatingNotes) {
+        const applied = applyModifiers(lastRepeatingNotes, pendingModifiers);
+        events.push(...applied);
+      }
       lastBaseBeat = null;
       lastRepeatingNotes = null;
       pendingModifiers = [];
       continue;
     }
     if (type === "continuation") {
-      if (lastBaseBeat === null) throw new Error("LMP: Orphaned same-beat continuation (+).");
+      if (lastBaseBeat === null) {
+        if (loose) {
+          warnings.push(`LMP [loose]: Orphaned continuation (+) with no preceding note at line ${sourceLine}; skipping`);
+          continue;
+        }
+        throw createError2("LMP: Orphaned same-beat continuation (+).", line);
+      }
+      while (tokens.length > 2 && (tokens[1].endsWith(",") || tokens[2] === "," || tokens[2].startsWith(","))) {
+        if (tokens[2] === ",") {
+          tokens[1] = tokens[1].endsWith(",") ? tokens[1] : tokens[1] + ",";
+        } else if (tokens[2].startsWith(",")) {
+          tokens[1] = tokens[1].endsWith(",") ? tokens[1] + tokens[2].slice(1) : tokens[1] + tokens[2];
+        } else {
+          tokens[1] = tokens[1].endsWith(",") ? tokens[1] + tokens[2] : tokens[1] + "," + tokens[2];
+        }
+        tokens.splice(2, 1);
+      }
       if (currentTrackIndex < 0) continue;
       const pitchStr = tokens[1];
       if (!pitchStr) continue;
@@ -1111,11 +1275,27 @@ function expand(lines, state, options = {}) {
       continue;
     }
     if (type === "modifier") {
-      if (lastRepeatingNotes === null) throw new Error("LMP: Orphaned modifier (|) \u2014 must follow a repeating note.");
+      if (lastRepeatingNotes === null) {
+        if (loose) {
+          warnings.push(`LMP [loose]: Orphaned modifier (|) with no preceding repeating note at line ${sourceLine}; skipping`);
+          continue;
+        }
+        throw createError2("LMP: Orphaned modifier (|) \u2014 must follow a repeating note.", line);
+      }
       pendingModifiers.push({ type, tokens });
       continue;
     }
     if (type === "event") {
+      while (tokens.length > 2 && (tokens[1].endsWith(",") || tokens[2] === "," || tokens[2].startsWith(","))) {
+        if (tokens[2] === ",") {
+          tokens[1] = tokens[1].endsWith(",") ? tokens[1] : tokens[1] + ",";
+        } else if (tokens[2].startsWith(",")) {
+          tokens[1] = tokens[1].endsWith(",") ? tokens[1] + tokens[2].slice(1) : tokens[1] + tokens[2];
+        } else {
+          tokens[1] = tokens[1].endsWith(",") ? tokens[1] + tokens[2] : tokens[1] + "," + tokens[2];
+        }
+        tokens.splice(2, 1);
+      }
       if (lastRepeatingNotes) {
         const applied = applyModifiers(lastRepeatingNotes, pendingModifiers);
         events.push(...applied);
@@ -1124,7 +1304,7 @@ function expand(lines, state, options = {}) {
       }
       if (currentTrackIndex < 0) {
         const p = (tokens[1] || "").toUpperCase();
-        if (p === "TEMPO" || p === "TS") throw new Error("LMP: TEMPO and TS must appear after at least one @TRACK.");
+        if (p === "TEMPO" || p === "TS") throw createError2("LMP: TEMPO and TS must appear after at least one @TRACK.", line);
         continue;
       }
       const range = parseRepeatRange(tokens[0]);
@@ -1138,7 +1318,10 @@ function expand(lines, state, options = {}) {
       const pitch = resolvePitch(tokens[1], map);
       if (pitch && pitch.reserved) {
         if (pitch.reserved === "R") {
-          events.push({ type: "rest", trackIndex: currentTrackIndex, beat: beat ?? range.beats[0] });
+          const beats = range ? range.beats : [beat];
+          for (const b of beats) {
+            events.push({ type: "rest", trackIndex: currentTrackIndex, beat: b });
+          }
           continue;
         }
         if (pitch.reserved === "CC") {
@@ -1147,14 +1330,14 @@ function expand(lines, state, options = {}) {
               warnings.push(`LMP [loose]: Invalid CC row at beat ${beat ?? tokens[0]} (underscore invalid); skipping`);
               continue;
             }
-            throw new Error("LMP: CC requires numeric controller number and value; underscore is invalid.");
+            throw createError2("LMP: CC requires numeric controller number and value; underscore is invalid.", line);
           }
           if (tokens[2] === void 0 || tokens[3] === void 0) {
             if (loose) {
               warnings.push(`LMP [loose]: Invalid CC row at beat ${beat ?? tokens[0]} (missing controller number or value); skipping`);
               continue;
             }
-            throw new Error("LMP: CC requires both controller number (column 3) and value (column 4).");
+            throw createError2("LMP: CC requires both controller number (column 3) and value (column 4).", line);
           }
           const num = parseInt(tokens[2], 10);
           const val = parseInt(tokens[3], 10);
@@ -1165,14 +1348,17 @@ function expand(lines, state, options = {}) {
             }
             continue;
           }
-          events.push({
-            type: "cc",
-            trackIndex: currentTrackIndex,
-            channel: state.tracks[currentTrackIndex]?.channel,
-            beat: beat ?? 0,
-            number: Math.max(0, Math.min(127, num)),
-            value: Math.max(0, Math.min(127, val))
-          });
+          const beats = range ? range.beats : [beat ?? 0];
+          for (const b of beats) {
+            events.push({
+              type: "cc",
+              trackIndex: currentTrackIndex,
+              channel: state.tracks[currentTrackIndex]?.channel,
+              beat: b,
+              number: Math.max(0, Math.min(127, num)),
+              value: Math.max(0, Math.min(127, val))
+            });
+          }
           continue;
         }
         if (pitch.reserved === "PB") {
@@ -1182,28 +1368,31 @@ function expand(lines, state, options = {}) {
               warnings.push(`LMP [loose]: Invalid PB row at beat ${beat ?? tokens[0]} (missing or invalid bend value); skipping`);
               continue;
             }
-            throw new Error("LMP: PB requires a valid bend value in column 3.");
+            throw createError2("LMP: PB requires a valid bend value in column 3.", line);
           }
           const semitones = raw;
           const pbrange = state.tracks[currentTrackIndex]?.pbrange ?? 2;
           const clamped = Math.max(-pbrange, Math.min(pbrange, semitones));
-          events.push({
-            type: "pb",
-            trackIndex: currentTrackIndex,
-            channel: state.tracks[currentTrackIndex]?.channel,
-            beat: beat ?? 0,
-            semitones: clamped
-          });
+          const beats = range ? range.beats : [beat ?? 0];
+          for (const b of beats) {
+            events.push({
+              type: "pb",
+              trackIndex: currentTrackIndex,
+              channel: state.tracks[currentTrackIndex]?.channel,
+              beat: b,
+              semitones: clamped
+            });
+          }
           continue;
         }
         if (pitch.reserved === "TEMPO") {
-          if (state.tracks.length === 0) throw new Error("LMP: TEMPO must appear after at least one @TRACK.");
+          if (state.tracks.length === 0) throw createError2("LMP: TEMPO must appear after at least one @TRACK.", line);
           const bpm = parseFloat(tokens[2], 10);
           events.push({ type: "tempo", trackIndex: 0, beat: beat ?? 0, bpm: Number.isNaN(bpm) ? 120 : bpm });
           continue;
         }
         if (pitch.reserved === "TS") {
-          if (state.tracks.length === 0) throw new Error("LMP: Time signature (TS) must appear after at least one @TRACK.");
+          if (state.tracks.length === 0) throw createError2("LMP: Time signature (TS) must appear after at least one @TRACK.", line);
           const num = parseInt(tokens[2], 10);
           const denom = parseInt(tokens[3], 10);
           events.push({ type: "ts", trackIndex: 0, beat: beat ?? 0, num: Number.isNaN(num) ? 4 : num, denom: Number.isNaN(denom) ? 4 : denom });
@@ -1213,8 +1402,8 @@ function expand(lines, state, options = {}) {
       const track = state.tracks[currentTrackIndex];
       let velocity = tokens[2] !== void 0 && tokens[2] !== "_" ? (() => {
         const v = parseInt(tokens[2], 10);
-        return Number.isNaN(v) ? velocityFromRule(track, tokens[1]) ?? track.defaultVel ?? DEFAULT_VEL : Math.max(1, Math.min(127, v));
-      })() : velocityFromRule(track, tokens[1]) ?? track.defaultVel ?? DEFAULT_VEL;
+        return Number.isNaN(v) ? velocityFromRule(track, tokens[1], rng) ?? track.defaultVel ?? DEFAULT_VEL : Math.max(1, Math.min(127, v));
+      })() : velocityFromRule(track, tokens[1], rng) ?? track.defaultVel ?? DEFAULT_VEL;
       let duration = tokens[3] !== void 0 ? (() => {
         const d = parseFloat(tokens[3], 10);
         return Number.isNaN(d) ? durationFromRule(track, tokens[1]) ?? track.defaultDur ?? DEFAULT_DUR : d;
@@ -1224,7 +1413,7 @@ function expand(lines, state, options = {}) {
         const resolved = chordPitches.map((s) => resolvePitch(s, map)).filter((p) => p && !p.reserved);
         for (let ci = 0; ci < resolved.length; ci++) {
           const p = resolved[ci];
-          const vel = velocityFromRule(track, chordPitches[ci]) ?? velocity;
+          const vel = velocityFromRule(track, chordPitches[ci], rng) ?? velocity;
           const dur2 = durationFromRule(track, chordPitches[ci]) ?? duration ?? (track.defaultDur ?? DEFAULT_DUR);
           events.push({
             type: "note",
@@ -1333,30 +1522,45 @@ function eventsToMidi(events, state) {
     );
     const hasPB = trackEvents.some((e) => e.type === "pb");
     const metaEvents = events.filter((e) => (e.type === "tempo" || e.type === "ts") && e.trackIndex === 0);
-    const lmpBeatToTick = (b) => Math.max(0, beatToTicks(b - 1, bpm, ppqn));
+    let origin = state.origin;
+    if (origin === void 0) {
+      const hasSubOneBeat = events.some((e) => e.beat !== void 0 && e.beat < 1);
+      origin = hasSubOneBeat ? 0 : 1;
+    }
+    const lmpBeatToTick = (b) => Math.max(0, beatToTicks(b - origin, bpm, ppqn));
     const withTicks = [];
+    if (ti === 0) {
+      const hasTickZeroTempo = metaEvents.some((e) => lmpBeatToTick(e.beat) === 0 && e.type === "tempo");
+      if (!hasTickZeroTempo) {
+        withTicks.push({ type: "tempo", tick: 0, bpm });
+      }
+      const hasTickZeroTs = metaEvents.some((e) => lmpBeatToTick(e.beat) === 0 && e.type === "ts");
+      if (!hasTickZeroTs) {
+        withTicks.push({ type: "ts", tick: 0, num: timesig.num, denom: timesig.denom });
+      }
+      for (const e of metaEvents) {
+        withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
+      }
+    }
+    if (hasPB || trackState.pbrange !== void 0 && trackState.pbrange !== 2) {
+      withTicks.push({ type: "cc", tick: 0, channel: trackState.channel, number: 101, value: 0 });
+      withTicks.push({ type: "cc", tick: 0, channel: trackState.channel, number: 100, value: 0 });
+      withTicks.push({ type: "cc", tick: 0, channel: trackState.channel, number: 6, value: pbrange });
+      withTicks.push({ type: "cc", tick: 0, channel: trackState.channel, number: 38, value: 0 });
+    }
+    const hasTickZeroPB = trackEvents.some((e) => e.type === "pb" && lmpBeatToTick(e.beat) === 0);
+    if (hasPB && !hasTickZeroPB) {
+      withTicks.push({ type: "pb", tick: 0, semitones: 0, trackIndex: ti });
+    }
     for (const e of trackEvents) {
       withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
     }
-    for (const e of metaEvents) {
-      if (ti === 0) withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
-    }
-    if (ti === 0) {
-      withTicks.push({ type: "tempo", tick: 0, bpm });
-      withTicks.push({ type: "ts", tick: 0, num: timesig.num, denom: timesig.denom });
-    }
-    if (hasPB) {
-      withTicks.push({ type: "pb", tick: 0, semitones: 0, trackIndex: ti });
-    }
-    const maxTick = withTicks.length ? Math.max(...withTicks.map((e) => e.tick)) : 0;
+    const noteEndTicks = trackEvents.filter((e) => e.type === "note").map((e) => lmpBeatToTick(e.beat + (e.duration ?? 0.25)));
+    const otherTicks = withTicks.map((e) => e.tick);
+    const maxTick = Math.max(0, ...noteEndTicks, ...otherTicks);
     if (hasPB) {
       withTicks.push({ type: "pb", tick: maxTick + 1, semitones: 0, trackIndex: ti });
     }
-    withTicks.sort((a, b) => {
-      if (a.tick !== b.tick) return a.tick - b.tick;
-      const order = { cc: 0, pb: 1, note: 2, tempo: 3, ts: 4 };
-      return (order[a.type] ?? 5) - (order[b.type] ?? 5);
-    });
     const flatEvents = [];
     for (const ev of withTicks) {
       if (ev.type === "note") {
@@ -1369,9 +1573,26 @@ function eventsToMidi(events, state) {
         flatEvents.push({ type: ev.type, tick: ev.tick, ev });
       }
     }
+    const FLAT_ORDER = {
+      tempo: 0,
+      ts: 0,
+      cc: 1,
+      pb: 2,
+      noteOff: 3,
+      noteOn: 4
+    };
     flatEvents.sort((a, b) => {
       if (a.tick !== b.tick) return a.tick - b.tick;
-      return (a.type === "noteOn" ? 0 : 1) - (b.type === "noteOn" ? 0 : 1);
+      const orderA = FLAT_ORDER[a.type] ?? 99;
+      const orderB = FLAT_ORDER[b.type] ?? 99;
+      if (orderA !== orderB) return orderA - orderB;
+      if (a.type === "noteOn" && b.type === "noteOn") {
+        return (a.ev.midi ?? 0) - (b.ev.midi ?? 0);
+      }
+      if (a.type === "noteOff" && b.type === "noteOff") {
+        return (a.ev.midi ?? 0) - (b.ev.midi ?? 0);
+      }
+      return 0;
     });
     const trackEventsOut = [];
     let lastTick = 0;
@@ -1493,25 +1714,86 @@ function pitchBendToSemitones(value, pbrange = DEFAULT_PBRANGE2) {
   const normalized = value / 8192;
   return Math.round(normalized * pbrange * 100) / 100;
 }
+function sanitizeTrackName(raw, fallback) {
+  if (!raw || typeof raw !== "string") return fallback;
+  const sanitized = raw.trim().replace(/[^A-Za-z0-9_]/g, "_");
+  return sanitized.length > 0 ? sanitized : fallback;
+}
+function quantizeTicks(ticks, ppqn, tolerance = 3) {
+  if (ticks <= 0) return 0;
+  const ratios = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    12,
+    16,
+    0.5,
+    0.25,
+    0.75,
+    1.5,
+    2.5,
+    3.5,
+    0.125,
+    0.375,
+    0.625,
+    0.875,
+    0.0625,
+    0.1875,
+    0.3125,
+    1 / 3,
+    2 / 3,
+    4 / 3,
+    1 / 6,
+    5 / 6,
+    1 / 12,
+    1 / 24
+  ];
+  for (const r of ratios) {
+    const targetTicks = Math.round(r * ppqn);
+    if (Math.abs(ticks - targetTicks) <= tolerance) {
+      return targetTicks;
+    }
+  }
+  return ticks;
+}
 function extractEvents(parsed) {
   const ppqn = parsed.header?.ticksPerBeat ?? DEFAULT_PPQN2;
   let bpm = DEFAULT_BPM2;
   let timesig = { num: 4, denom: 4 };
   const allEvents = [];
+  const trackNames = [];
+  const trackPbranges = [];
   const pendingNoteOns = /* @__PURE__ */ new Map();
   for (let ti = 0; ti < parsed.tracks.length; ti++) {
     const track = parsed.tracks[ti];
     let tick = 0;
+    let rpnState = { msb: null, lsb: null };
     for (const ev of track) {
       tick += ev.deltaTime ?? 0;
+      if (ev.type === "trackName" || ev.type === "sequenceTrackName") {
+        const raw = ev.text || ev.name;
+        if (raw && !trackNames[ti]) trackNames[ti] = raw;
+        continue;
+      }
       if (ev.type === "setTempo") {
-        bpm = microsecondsToBpm(ev.microsecondsPerBeat);
-        allEvents.push({ type: "tempo", trackIndex: ti, tick, bpm });
+        const eventBpm = microsecondsToBpm(ev.microsecondsPerBeat);
+        if (tick === 0 && allEvents.filter((e) => e.type === "tempo" && e.tick === 0).length === 0) {
+          bpm = eventBpm;
+        }
+        allEvents.push({ type: "tempo", trackIndex: ti, tick, bpm: eventBpm });
         continue;
       }
       if (ev.type === "timeSignature") {
-        timesig = { num: ev.numerator ?? 4, denom: ev.denominator ?? 4 };
-        allEvents.push({ type: "ts", trackIndex: ti, tick, numerator: timesig.num, denominator: timesig.denom });
+        const ts = { num: ev.numerator ?? 4, denom: ev.denominator ?? 4 };
+        if (tick === 0 && allEvents.filter((e) => e.type === "ts" && e.tick === 0).length === 0) {
+          timesig = ts;
+        }
+        allEvents.push({ type: "ts", trackIndex: ti, tick, numerator: ts.num, denominator: ts.denom });
         continue;
       }
       if (ev.type === "programChange") {
@@ -1519,6 +1801,21 @@ function extractEvents(parsed) {
         continue;
       }
       if (ev.type === "controller") {
+        if (ev.controllerType === 101) {
+          rpnState.msb = ev.value;
+          continue;
+        }
+        if (ev.controllerType === 100) {
+          rpnState.lsb = ev.value;
+          continue;
+        }
+        if (ev.controllerType === 6 && rpnState.msb === 0 && rpnState.lsb === 0) {
+          trackPbranges[ti] = ev.value;
+          continue;
+        }
+        if (ev.controllerType === 38 && rpnState.msb === 0 && rpnState.lsb === 0) {
+          continue;
+        }
         allEvents.push({
           type: "cc",
           trackIndex: ti,
@@ -1544,7 +1841,23 @@ function extractEvents(parsed) {
         if (!pendingNoteOns.has(ti)) pendingNoteOns.set(ti, /* @__PURE__ */ new Map());
         const byCh = pendingNoteOns.get(ti);
         if (!byCh.has(ch)) byCh.set(ch, /* @__PURE__ */ new Map());
-        byCh.get(ch).set(ev.noteNumber, { tick, velocity: ev.velocity ?? 64 });
+        if ((ev.velocity ?? 64) === 0) {
+          const on = byCh.get(ev.noteNumber);
+          if (on) {
+            allEvents.push({
+              type: "note",
+              trackIndex: ti,
+              tick: on.tick,
+              channel: ch,
+              noteNumber: ev.noteNumber,
+              velocity: on.velocity,
+              durationTicks: tick - on.tick
+            });
+            byCh.delete(ev.noteNumber);
+          }
+        } else {
+          byCh.get(ch).set(ev.noteNumber, { tick, velocity: ev.velocity ?? 64 });
+        }
         continue;
       }
       if (ev.type === "noteOff") {
@@ -1567,9 +1880,9 @@ function extractEvents(parsed) {
       }
     }
   }
-  return { events: allEvents, ppqn, bpm, timesig };
+  return { events: allEvents, ppqn, bpm, timesig, trackNames, trackPbranges };
 }
-function groupAndSort(events, ppqn) {
+function groupAndSort(events) {
   const byTrack = /* @__PURE__ */ new Map();
   for (const e of events) {
     const ti = e.trackIndex;
@@ -1590,8 +1903,8 @@ function decompile(midiBuffer, options = {}) {
   const precision = options?.precision ?? 3;
   const buffer = midiBuffer instanceof Uint8Array ? midiBuffer : typeof Buffer !== "undefined" && Buffer.isBuffer(midiBuffer) ? new Uint8Array(midiBuffer) : new Uint8Array(Array.from(midiBuffer));
   const parsed = (0, import_midi_file2.parseMidi)(buffer);
-  const { events, ppqn, bpm, timesig } = extractEvents(parsed);
-  const byTrack = groupAndSort(events, ppqn);
+  const { events, ppqn, bpm, timesig, trackNames, trackPbranges } = extractEvents(parsed);
+  const byTrack = groupAndSort(events);
   const lines = [];
   lines.push("@LMP 1.0");
   lines.push(`@BPM ${bpm}`);
@@ -1599,33 +1912,63 @@ function decompile(midiBuffer, options = {}) {
   lines.push(`@PPQN ${ppqn}`);
   lines.push("");
   const roundBeat = (b) => Math.round(b * Math.pow(10, precision)) / Math.pow(10, precision);
+  const playableTrackIndices = [];
+  const conductorMetaEvents = [];
   for (let ti = 0; ti < parsed.tracks.length; ti++) {
     const trackEvents = byTrack.get(ti) ?? [];
     const hasNotes = trackEvents.some((e) => e.type === "note");
     const hasCC = trackEvents.some((e) => e.type === "cc");
     const hasPB = trackEvents.some((e) => e.type === "pb");
-    const hasTempo = trackEvents.some((e) => e.type === "tempo");
-    const hasTS = trackEvents.some((e) => e.type === "ts");
-    if (!hasNotes && !hasCC && !hasPB && !hasTempo && !hasTS) continue;
+    const hasProgram = trackEvents.some((e) => e.type === "programChange");
+    if (hasNotes || hasCC || hasPB || hasProgram) {
+      playableTrackIndices.push(ti);
+    } else {
+      for (const e of trackEvents) {
+        if (e.type === "tempo" || e.type === "ts") conductorMetaEvents.push(e);
+      }
+    }
+  }
+  if (playableTrackIndices.length === 0) {
+    for (let ti = 0; ti < parsed.tracks.length; ti++) {
+      if ((byTrack.get(ti) ?? []).length > 0) playableTrackIndices.push(ti);
+    }
+  }
+  let lmpTrackNumber = 1;
+  for (let pi = 0; pi < playableTrackIndices.length; pi++) {
+    const ti = playableTrackIndices[pi];
+    const trackEvents = byTrack.get(ti) ?? [];
+    if (pi === 0 && conductorMetaEvents.length > 0) {
+      for (const ce of conductorMetaEvents) {
+        if (!trackEvents.some((te) => te.type === ce.type && te.tick === ce.tick)) {
+          trackEvents.push(ce);
+        }
+      }
+      trackEvents.sort((a, b) => a.tick - b.tick);
+    }
     const channel = trackEvents.find((e) => e.channel !== void 0)?.channel ?? 0;
     const displayChannel = channel + 1;
-    const effectiveChannel = hasNotes || hasCC || hasPB ? displayChannel : 1;
     const program = trackEvents.find((e) => e.type === "programChange")?.programNumber;
-    const trackName = `Track_${ti + 1}`;
-    lines.push(`@TRACK ${ti + 1} ${trackName}`);
-    lines.push(`@CHANNEL ${effectiveChannel}`);
+    const pbrange = trackPbranges[ti] ?? DEFAULT_PBRANGE2;
+    const rawName = trackNames[ti];
+    const trackName = sanitizeTrackName(rawName, `Track_${lmpTrackNumber}`);
+    lines.push(`@TRACK ${lmpTrackNumber} ${trackName}`);
+    lines.push(`@CHANNEL ${displayChannel}`);
     if (program !== void 0) lines.push(`@PROGRAM ${program}`);
+    if (pbrange !== DEFAULT_PBRANGE2) lines.push(`@PBRANGE ${pbrange}`);
     lines.push("");
     const noteGroups = /* @__PURE__ */ new Map();
     const ccAtTick = [];
     const pbAtTick = [];
     const tempoAtTick = [];
     const tsAtTick = [];
+    let maxNoteEndTick = 0;
     for (const e of trackEvents) {
       const beat = roundBeat(tickToLmpBeat(e.tick, ppqn));
       if (e.type === "note") {
-        if (!noteGroups.has(e.tick)) noteGroups.set(e.tick, []);
-        noteGroups.get(e.tick).push({
+        const end = e.tick + (e.durationTicks ?? 0);
+        if (end > maxNoteEndTick) maxNoteEndTick = end;
+        if (!noteGroups.has(beat)) noteGroups.set(beat, []);
+        noteGroups.get(beat).push({
           noteNumber: e.noteNumber,
           velocity: e.velocity,
           durationTicks: e.durationTicks
@@ -1647,32 +1990,53 @@ function decompile(midiBuffer, options = {}) {
     }
     const sortedBeats = [...allBeats].sort((a, b) => a - b);
     for (const beat of sortedBeats) {
-      const tick = Math.round((beat - 1) * ppqn);
       for (const e of tempoAtTick.filter((x) => x.beat === beat)) {
+        if (e.tick === 0 && e.bpm === bpm) continue;
         lines.push(`${beat} TEMPO ${e.bpm}`);
       }
       for (const e of tsAtTick.filter((x) => x.beat === beat)) {
+        if (e.tick === 0 && e.numerator === timesig.num && e.denominator === timesig.denom) continue;
         lines.push(`${beat} TS ${e.numerator ?? 4} ${e.denominator ?? 4}`);
       }
       for (const e of ccAtTick.filter((x) => x.beat === beat)) {
         lines.push(`${beat} CC ${e.controllerType} ${e.value}`);
       }
-      for (const e of pbAtTick.filter((x) => x.beat === beat)) {
-        const semitones = pitchBendToSemitones(e.value);
+      const pbs = pbAtTick.filter((x) => x.beat === beat);
+      for (let pbi = 0; pbi < pbs.length; pbi++) {
+        const e = pbs[pbi];
+        if (e.value === 0 && e.tick > maxNoteEndTick && maxNoteEndTick > 0) continue;
+        if (pbi < pbs.length - 1) continue;
+        const semitones = pitchBendToSemitones(e.value, pbrange);
         lines.push(`${beat} PB ${semitones}`);
       }
-      const notes = noteGroups.get(tick) ?? [];
+      const notes = noteGroups.get(beat) ?? [];
       if (notes.length > 0) {
         notes.sort((a, b) => a.noteNumber - b.noteNumber);
         const isDrum = displayChannel === 10;
-        const pitchStr = notes.map((n) => isDrum || !preferSpn ? String(n.noteNumber) : midiToSpn(n.noteNumber) ?? String(n.noteNumber)).join(",");
-        const vel = notes[0].velocity;
-        const durTicks = notes[0].durationTicks ?? ppqn / 4;
-        const durBeats = Math.round(durTicks / ppqn * 1e3) / 1e3;
-        lines.push(`${beat} ${pitchStr} ${vel} ${durBeats}`);
+        const groups = [];
+        for (const n of notes) {
+          const qDurTicks = quantizeTicks(n.durationTicks ?? ppqn / 4, ppqn);
+          const durBeats = Math.round(qDurTicks / ppqn * 1e3) / 1e3;
+          const vel = n.velocity;
+          let grp = groups.find((g) => g.velocity === vel && g.durBeats === durBeats);
+          if (!grp) {
+            grp = { velocity: vel, durBeats, notes: [] };
+            groups.push(grp);
+          }
+          grp.notes.push(n);
+        }
+        const g0 = groups[0];
+        const p0 = g0.notes.map((n) => isDrum || !preferSpn ? String(n.noteNumber) : midiToSpn(n.noteNumber) ?? String(n.noteNumber)).join(",");
+        lines.push(`${beat} ${p0} ${g0.velocity} ${g0.durBeats}`);
+        for (let gi = 1; gi < groups.length; gi++) {
+          const g = groups[gi];
+          const p = g.notes.map((n) => isDrum || !preferSpn ? String(n.noteNumber) : midiToSpn(n.noteNumber) ?? String(n.noteNumber)).join(",");
+          lines.push(`+ ${p} ${g.velocity} ${g.durBeats}`);
+        }
       }
     }
     lines.push("");
+    lmpTrackNumber++;
   }
   return lines.join("\n").trimEnd();
 }

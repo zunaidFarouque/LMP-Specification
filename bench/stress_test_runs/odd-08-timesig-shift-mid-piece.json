@@ -1,0 +1,20 @@
+{
+  "id": "odd-08-timesig-shift-mid-piece",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Mid-stream time signature modulation: 4/4 to 7/8 then back to 4/4",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 328,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 201
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 201
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Synth\n@CHANNEL 1\n\n// Measure 1: 4/4 (beats 1.0 to 5.0)\n1.0 C4 80 1.0\n2.0 D4 80 1.0\n3.0 E4 80 1.0\n4.0 F4 80 1.0\n\n// Measure 2: 7/8 (beat 5.0, spans 3.5 beats to 8.5)\n5.0 TS 7 8\n5.0 G4 85 0.5\n5.5 A4 85 0.5\n6.0 B4 85 0.5\n6.5 C5 85 0.5\n7.0 D5 85 0.5\n7.5 E5 85 0.5\n8.0 F5 85 0.5\n\n// Measure 3: Return to 4/4 at beat 8.5\n8.5 TS 4 4\n8.5 G5 90 1.0\n9.5 A5 90 1.0\n10.5 B5 90 1.0\n11.5 C6 95 1.0\n"
+}

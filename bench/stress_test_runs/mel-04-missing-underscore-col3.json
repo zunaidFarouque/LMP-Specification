@@ -1,0 +1,20 @@
+{
+  "id": "mel-04-missing-underscore-col3",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Missing underscore in column 3 (intended duration 2.0 interpreted as velocity 2)",
+  "expectedCategory": "silent_semantic_error",
+  "promptAdherence": "syntax_confusion",
+  "tokens": 60,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 67
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 67
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n@DEFAULT_VEL 85\n@DEFAULT_DUR 0.25\n1.0 C4 2.0\n2.0 E4 2.0\n"
+}

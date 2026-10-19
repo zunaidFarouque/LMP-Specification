@@ -1,0 +1,20 @@
+{
+  "id": "mel-03-chord-symbol-hallucination",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Hallucinated chord symbol (Cmaj7, Dm7) instead of SPN note pitches",
+  "expectedCategory": "semantic_syntax_error",
+  "promptAdherence": "knowledge_leak",
+  "tokens": 63,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 60
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 60
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 Cmaj7 80 1.0\n2.0 Dm7 80 1.0\n3.0 G7 80 1.0\n"
+}

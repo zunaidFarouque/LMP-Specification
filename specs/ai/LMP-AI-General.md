@@ -46,6 +46,8 @@ Each event: `[Beat] [Pitch] [Velocity] [Length]`
 - **Length:** Duration in beats. Optional for notes; uses fallback when omitted.
 
 **Omitting data:** Use `_` in Column 3 when you want fallback velocity but explicit length: `1.0 C4 _ 2.0`.
+- **CRITICAL Column 3 `_` Placeholder Rule:** Column 3 is ALWAYS Velocity, and Column 4 is ALWAYS Duration. If you omit velocity while specifying duration, you MUST write `_` in Column 3: `1.0 C4 _ 2.0`. NEVER write `1.0 C4 2.0` (which erroneously interprets `2.0` as velocity 2, making the note silent).
+- **CRITICAL Negative Constraint — No Spaces in Chords:** In Column 2 chords, NEVER put spaces after commas. Always write `1.0 C4,E4,G4 80 1.0`, NEVER `1.0 C4, E4, G4 80 1.0`. Spaces break column alignment.
 
 ## 6. Pitch Column
 
@@ -55,7 +57,7 @@ Each event: `[Beat] [Pitch] [Velocity] [Length]`
 - **Percussive:** GM integers (36 = kick, 38 = snare, 42 = closed hi-hat, 46 = open hi-hat).
 - **R (Rest):** Silence marker. No velocity or length. Use in Legato tracks for rests.
 - **CC:** Column 3 = controller number, Column 4 = value. Both required. Example: `1.0 CC 64 127` (sustain).
-- **PB:** Column 3 = bend in semitones. Use `PB 0.0` to return to center before subsequent notes.
+- **PB:** Column 3 = bend in semitones. Pitch bends automatically reset to center (0.0) at the end of the note duration, but explicit `PB 0.0` can also be emitted.
 - **TEMPO:** `X.X TEMPO 120.0`
 - **TS:** `X.X TS 7 8` (time signature change)
 
@@ -68,6 +70,8 @@ Declare before events. Each track needs `@TRACK` and `@CHANNEL`.
 - `@LMP 1.0` — Version (include at top)
 - `@BPM [float]` — Tempo
 - `@TIMESIG [int]/[int]` — e.g. `@TIMESIG 4/4` or `@TIMESIG 7/8`
+- `@ORIGIN [0|1]` — Timeline start index (default `1` for 1-based downbeats; `0` for 0-based DAWs)
+- `@SEED [int]` — Deterministic PRNG seed for `@RULE VEL` humanization
 - `@TRACK [int] [Name]` — Name required (alphanumeric, underscores)
 - `@CHANNEL [int]` — 1–16. Channel 10 for drums.
 - `@PROGRAM [int]` — MIDI patch (0–127). Optional.
@@ -75,7 +79,7 @@ Declare before events. Each track needs `@TRACK` and `@CHANNEL`.
 - `@DEFAULT_DUR [float]` — Fallback duration
 - `@PBRANGE [int]` — Pitch bend range in semitones (default 2)
 - `@MAP [Name]=[Integer]` — Custom pitch name. Name: alphanumeric, underscores, no leading digit.
-- `@RULE [Pitch] VEL=[min]-[max]` — Randomize velocity when omitted
+- `@RULE [Pitch] VEL=[min]-[max]` — Randomize velocity within range when omitted
 - `@RULE [Pitch] DUR=[float]` — Fixed duration for pitch
 - `@RULE LEGATO=TRUE` — Auto-calculate duration to next note (monophonic)
 
@@ -83,7 +87,7 @@ Declare before events. Each track needs `@TRACK` and `@CHANNEL`.
 
 ## 8. Advanced Features
 
-**Chordal polyphony:** Comma-separated pitches, no spaces: `1.0 C4,E4,G4 85 1.0`
+**Chordal polyphony:** Comma-separated pitches with STRICTLY NO SPACES: `1.0 C4,E4,G4 85 1.0`. Negative constraint: NEVER insert spaces after commas in chords (e.g. `C4, E4, G4` is forbidden; always format as `C4,E4,G4`).
 
 **Same-beat continuation (`+`):** Inherit beat from previous line. Use only after a regular note (single beat), not after repeating syntax.
 ```
@@ -156,12 +160,46 @@ For Legato: give the final note of a phrase explicit duration in Column 4.
 4.0 38
 ```
 
+**Odd-Meter (7/8 Progressive Groove):**
+Remember: 1 measure of 7/8 = 7 eighth notes = 3.5 quarter-note beats!
+- Bar 1 spans beats 1.0 to 4.5
+- Bar 2 begins at beat 4.5 and spans to 8.0
+```LMP
+@LMP 1.0
+@BPM 140
+@TIMESIG 7/8
+@TRACK 1 Drums
+@CHANNEL 10
+@DEFAULT_DUR 0.25
+
+// Measure 1 (beats 1.0 to 4.5, total 3.5 beats)
+1.0 36 120
+1.5 36 110
+2.0 38 125
+2.5 36 110
+3.0 36 120
+3.25 36 115
+
+// Measure 2 (starts at beat 4.5, spans to 8.0)
+4.5 36 120
+5.0 36 110
+5.5 38 125
+6.0 36 110
+6.5 36 120
+6.75 36 115
+```
+
 ## 11. Output Checklist
 
+- Wrap code blocks inside \`\`\`lmp ... \`\`\` code fence for instant player detection
 - Begin with `@LMP 1.0`
-- Declare `@TRACK` and `@CHANNEL` before any events
-- Use absolute beat numbers (0.0, 1.0, 2.5)
+- Declare `@TRACK [id] [Name]` and `@CHANNEL [1-16]` before any events
+- Use absolute beat numbers (0.0, 1.0, 2.5). Beat 1.0 = downbeat in default `@ORIGIN 1`
+- **Negative constraint:** NEVER put spaces inside chords (write `C4,E4,G4`, NEVER `C4, E4, G4`)
+- **Column 3 placeholder:** Always use `_` when omitting velocity but specifying duration (`1.0 C4 _ 2.0`, never `1.0 C4 2.0`)
+- **Odd meter math:** In 7/8 time, 1 bar = 3.5 beats (Bar 1: 1.0 to 4.5, Bar 2: 4.5 to 8.0)
+- Repeating notes: use fractional intervals (`:1/2`, `:1/4`, `:1/8`), never decimals (`:0.5` is invalid)
+- Remember that loop EndBeat is exclusive (`1.0-5.0:1/2` fills a 4-beat bar)
 - Use `//` for inline comments when helpful
 - Omit velocity and duration when defaults apply; use `_` when omitting velocity but specifying length
-- Use `PB 0.0` before returning to normal pitch after a bend
-- Output only valid LMP; no prose mixed in
+- Output only valid LMP; no conversational prose mixed into the code block

@@ -1,0 +1,20 @@
+{
+  "id": "mel-10-lowercase-spn",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Lowercase Scientific Pitch Notation (c4, eb4, f#4)",
+  "expectedCategory": "clean",
+  "promptAdherence": "case_drift",
+  "tokens": 66,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 108
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 108
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 c4,e4,g4,b4 80 1.0\n2.0 d4,f#4,a4 80 1.0\n"
+}

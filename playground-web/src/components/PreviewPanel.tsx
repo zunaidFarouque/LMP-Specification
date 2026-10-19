@@ -13,6 +13,8 @@ type PreviewPanelProps = {
   decompile: (buffer: Uint8Array) => string;
   lmpText?: string;
   onHighlightLine?: (line: number | null) => void;
+  currentBeat?: number | null;
+  isPlaying?: boolean;
 };
 
 export function PreviewPanel({
@@ -22,6 +24,8 @@ export function PreviewPanel({
   decompile,
   lmpText = '',
   onHighlightLine,
+  currentBeat,
+  isPlaying,
 }: PreviewPanelProps) {
   const [useInlineDrummap, setUseInlineDrummap] = useState(false);
   const [drumMaps, setDrumMaps] = useState<LoadedDrumMap[]>([]);
@@ -181,6 +185,8 @@ export function PreviewPanel({
               data={pianoRollData}
               sourceMap={sourceMap}
               onHighlightLine={onHighlightLine ?? (() => {})}
+              currentBeat={currentBeat}
+              isPlaying={isPlaying}
             />
           </div>
         )}

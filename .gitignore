@@ -44,3 +44,7 @@ coverage/
 
 # ============ TypeScript ============
 *.tsbuildinfo
+
+# ============ Audio & Backups ============
+*.wav
+**/bkp files/

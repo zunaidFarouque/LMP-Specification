@@ -1,0 +1,20 @@
+{
+  "id": "prod-01-clean-cc-and-pb",
+  "dimension": "dim4_production_nuance",
+  "name": "Clean CC64 sustain, CC11 expression swell, and Pitch Bend glide",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 168,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 145
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 145
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 70\n@TRACK 1 Ambient_Pad\n@CHANNEL 1\n@PROGRAM 89\n@PBRANGE 12\n\n// CC Sustain Down\n1.0 CC 64 127\n// CC11 Expression Swell\n1.0 CC 11 30\n2.0 CC 11 65\n3.0 CC 11 110\n4.0 CC 11 40\n\n// Pitch Bend slide\n1.0 PB 0.0\n2.5 PB 2.0\n3.5 PB 4.0\n4.0 PB 0.0\n\n1.0 C3,G3,D4 _ 4.0\n"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "trans-01-clean-roundtrip",
+  "dimension": "dim3_translation_reconstruction",
+  "name": "Clean two-track composition for exact roundtrip fidelity",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 143,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 161
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 161
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 110\n@TIMESIG 4/4\n@TRACK 1 Bass\n@CHANNEL 1\n@PROGRAM 33\n1.0 C2 100 1.0\n2.0 G2 95 1.0\n3.0 A2 100 1.0\n4.0 F2 95 1.0\n\n@TRACK 2 Keys\n@CHANNEL 2\n@PROGRAM 4\n1.0 C4,E4,G4 80 2.0\n3.0 A3,C4,E4 80 2.0\n"
+}

@@ -59,4 +59,54 @@ describe('preprocess', () => {
     const out = preprocess('@LMP 1.0\n   \n\t\n2.0 C4');
     expect(out.map((l) => l.tokens[0])).toEqual(['@LMP', '2.0']);
   });
+
+  test('strip markdown fences and conversational preamble', () => {
+    const input = `Here is your requested LMP music file:
+
+\`\`\`lmp
+@LMP 1.0
+@BPM 120
+@TRACK 1 Piano
+@CHANNEL 1
+1.0 C4,E4,G4 80 2.0
+\`\`\`
+
+Enjoy the MIDI playback!
+`;
+    const out = preprocess(input);
+    expect(out.map((l) => l.tokens[0])).toEqual(['@LMP', '@BPM', '@TRACK', '@CHANNEL', '1.0']);
+    expect(out[4].tokens).toEqual(['1.0', 'C4,E4,G4', '80', '2.0']);
+  });
+
+  test('whitespace-tolerant chords normalized to single chord token', () => {
+    const out = preprocess('@TRACK 1 P\n@CHANNEL 1\n1.0 C4, E4, G4, B4 80 1.0\n+ D4, F4 90 2.0');
+    expect(out[2].tokens).toEqual(['1.0', 'C4,E4,G4,B4', '80', '1.0']);
+    expect(out[3].tokens).toEqual(['+', 'D4,F4', '90', '2.0']);
+  });
+
+  test('ignore conversational postamble with digits after closing markdown fence', () => {
+    const input = `\`\`\`lmp
+@LMP 1.0
+@TRACK 1 Piano
+@CHANNEL 1
+1.0 C4 80 1.0
+\`\`\`
+This composition is great!
+4/4 time signature is used.
+2 tracks can be added later.
+`;
+    const out = preprocess(input);
+    expect(out.map((l) => l.tokens[0])).toEqual(['@LMP', '@TRACK', '@CHANNEL', '1.0']);
+  });
+
+  test('preamble before @TIMESIG without @LMP or @BPM is ignored', () => {
+    const input = `Here is your rhythm track:
+@TIMESIG 6/8
+@TRACK 1 Perc
+@CHANNEL 10
+1.0 36 100 0.5
+`;
+    const out = preprocess(input);
+    expect(out.map((l) => l.tokens[0])).toEqual(['@TIMESIG', '@TRACK', '@CHANNEL', '1.0']);
+  });
 });

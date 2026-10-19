@@ -46,30 +46,59 @@ export function eventsToMidi(events, state) {
     const hasPB = trackEvents.some((e) => e.type === 'pb');
     const metaEvents = events.filter((e) => (e.type === 'tempo' || e.type === 'ts') && e.trackIndex === 0);
 
-    const lmpBeatToTick = (b) => Math.max(0, beatToTicks(b - 1, bpm, ppqn));
+    let origin = state.origin;
+    if (origin === undefined) {
+      // If any event beat is < 1.0 (e.g. 0.0), origin defaults to 0; otherwise 1 for backward compatibility
+      const hasSubOneBeat = events.some((e) => e.beat !== undefined && e.beat < 1.0);
+      origin = hasSubOneBeat ? 0 : 1;
+    }
+    const lmpBeatToTick = (b) => Math.max(0, beatToTicks(b - origin, bpm, ppqn));
+
     const withTicks = [];
+
+    // 1. Conductor Track Meta Events (Tempo & TS) at Tick 0
+    if (ti === 0) {
+      const hasTickZeroTempo = metaEvents.some((e) => lmpBeatToTick(e.beat) === 0 && e.type === 'tempo');
+      if (!hasTickZeroTempo) {
+        withTicks.push({ type: 'tempo', tick: 0, bpm });
+      }
+      const hasTickZeroTs = metaEvents.some((e) => lmpBeatToTick(e.beat) === 0 && e.type === 'ts');
+      if (!hasTickZeroTs) {
+        withTicks.push({ type: 'ts', tick: 0, num: timesig.num, denom: timesig.denom });
+      }
+      for (const e of metaEvents) {
+        withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
+      }
+    }
+
+    // 2. Track Setup: Pitch Bend Sensitivity RPN 00 00
+    if (hasPB || (trackState.pbrange !== undefined && trackState.pbrange !== 2)) {
+      withTicks.push({ type: 'cc', tick: 0, channel: trackState.channel, number: 101, value: 0 });
+      withTicks.push({ type: 'cc', tick: 0, channel: trackState.channel, number: 100, value: 0 });
+      withTicks.push({ type: 'cc', tick: 0, channel: trackState.channel, number: 6, value: pbrange });
+      withTicks.push({ type: 'cc', tick: 0, channel: trackState.channel, number: 38, value: 0 });
+    }
+
+    // 3. Track Setup: Center Pitch Bend (PB 0.0) if track has PB but no explicit PB at tick 0
+    const hasTickZeroPB = trackEvents.some((e) => e.type === 'pb' && lmpBeatToTick(e.beat) === 0);
+    if (hasPB && !hasTickZeroPB) {
+      withTicks.push({ type: 'pb', tick: 0, semitones: 0, trackIndex: ti });
+    }
+
+    // 4. Track Events (Notes, CC, PB)
     for (const e of trackEvents) {
       withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
     }
-    for (const e of metaEvents) {
-      if (ti === 0) withTicks.push({ ...e, tick: lmpBeatToTick(e.beat) });
-    }
-    if (ti === 0) {
-      withTicks.push({ type: 'tempo', tick: 0, bpm });
-      withTicks.push({ type: 'ts', tick: 0, num: timesig.num, denom: timesig.denom });
-    }
-    if (hasPB) {
-      withTicks.push({ type: 'pb', tick: 0, semitones: 0, trackIndex: ti });
-    }
-    const maxTick = withTicks.length ? Math.max(...withTicks.map((e) => e.tick)) : 0;
+
+    // 5. Pitch Bend Auto-Reset at track end
+    const noteEndTicks = trackEvents
+      .filter((e) => e.type === 'note')
+      .map((e) => lmpBeatToTick(e.beat + (e.duration ?? 0.25)));
+    const otherTicks = withTicks.map((e) => e.tick);
+    const maxTick = Math.max(0, ...noteEndTicks, ...otherTicks);
     if (hasPB) {
       withTicks.push({ type: 'pb', tick: maxTick + 1, semitones: 0, trackIndex: ti });
     }
-    withTicks.sort((a, b) => {
-      if (a.tick !== b.tick) return a.tick - b.tick;
-      const order = { cc: 0, pb: 1, note: 2, tempo: 3, ts: 4 };
-      return (order[a.type] ?? 5) - (order[b.type] ?? 5);
-    });
 
     // Expand notes to noteOn/noteOff pairs for correct chord ordering
     const flatEvents = [];
@@ -84,9 +113,28 @@ export function eventsToMidi(events, state) {
         flatEvents.push({ type: ev.type, tick: ev.tick, ev });
       }
     }
+
+    const FLAT_ORDER = {
+      tempo: 0,
+      ts: 0,
+      cc: 1,
+      pb: 2,
+      noteOff: 3,
+      noteOn: 4,
+    };
+
     flatEvents.sort((a, b) => {
       if (a.tick !== b.tick) return a.tick - b.tick;
-      return (a.type === 'noteOn' ? 0 : 1) - (b.type === 'noteOn' ? 0 : 1);
+      const orderA = FLAT_ORDER[a.type] ?? 99;
+      const orderB = FLAT_ORDER[b.type] ?? 99;
+      if (orderA !== orderB) return orderA - orderB;
+      if (a.type === 'noteOn' && b.type === 'noteOn') {
+        return (a.ev.midi ?? 0) - (b.ev.midi ?? 0);
+      }
+      if (a.type === 'noteOff' && b.type === 'noteOff') {
+        return (a.ev.midi ?? 0) - (b.ev.midi ?? 0);
+      }
+      return 0;
     });
 
     const trackEventsOut = [];

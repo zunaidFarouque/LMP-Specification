@@ -1,0 +1,20 @@
+{
+  "id": "drum-08-ghost-notes-seeded-rules",
+  "dimension": "dim2_complex_drums",
+  "name": "Ghost notes with low velocity humanization and @RULE VEL",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 143,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 162
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 162
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 100\n@SEED 42\n@TRACK 1 Drums\n@CHANNEL 10\n@MAP kick=36\n@MAP snare=38\n@MAP hihat=42\n@RULE hihat VEL=65-80\n\n1.0 kick 115\n1.75 snare 30 0.1 // ghost note\n2.0 snare 110\n2.75 snare 25 0.1 // ghost note\n3.0 kick 115\n4.0 snare 110\n1.0-5.0:1/2 hihat\n"
+}

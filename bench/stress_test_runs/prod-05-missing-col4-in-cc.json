@@ -1,0 +1,26 @@
+{
+  "id": "prod-05-missing-col4-in-cc",
+  "dimension": "dim4_production_nuance",
+  "name": "Missing column 4 in CC row (1.0 CC 64)",
+  "expectedCategory": "syntax_strict_error",
+  "promptAdherence": "column_omission",
+  "tokens": 45,
+  "strict": {
+    "ok": false,
+    "error": {
+      "message": "LMP: CC requires both controller number (column 3) and value (column 4).",
+      "line": 5,
+      "col": 1
+    },
+    "midiLength": 0
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [
+      "LMP [loose]: Invalid CC row at beat 1 (missing controller number or value); skipping"
+    ],
+    "error": null,
+    "midiLength": 59
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Synth\n@CHANNEL 1\n1.0 CC 64\n1.0 C4 80 1.0\n"
+}

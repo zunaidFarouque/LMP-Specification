@@ -1,0 +1,26 @@
+{
+  "id": "drum-04-blank-line-before-modifier",
+  "dimension": "dim2_complex_drums",
+  "name": "Blank line between repeating note and | modifier (orphaned modifier)",
+  "expectedCategory": "syntax_error",
+  "promptAdherence": "formatting_error",
+  "tokens": 50,
+  "strict": {
+    "ok": false,
+    "error": {
+      "message": "LMP: Orphaned modifier (|) — must follow a repeating note.",
+      "line": 8,
+      "col": 1
+    },
+    "midiLength": 0
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [
+      "LMP [loose]: Detached modifier (|) after blank line at line 8; attaching to repeating note"
+    ],
+    "error": null,
+    "midiLength": 100
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n\n1.0-5.0:1/2 42\n\n| R 2.0 4.0\n"
+}

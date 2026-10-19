@@ -147,3 +147,49 @@ describe('Loose Mode — @INHERIT from non-existent', () => {
     expect(result.warnings.some((w) => /INHERIT|non-existent|99/i.test(w))).toBe(true);
   });
 });
+
+describe('Loose Mode — detached continuation (+) and modifier (|) after blank lines', () => {
+  test('blank line before + throws in strict mode, recovers with warning in loose mode', () => {
+    const lmp = `@LMP 1.0
+@BPM 120
+@TRACK 1 Piano
+@CHANNEL 1
+1.0 C3 _ 4.0
+
++ E4,G4 _ 2.0
+`;
+    expect(() => compile(lmp, { loose: false })).toThrow(/Orphaned same-beat continuation/i);
+
+    const res = compile(lmp, { loose: true });
+    expect(res.midi).toBeInstanceOf(Uint8Array);
+    expect(res.midi.length).toBeGreaterThan(0);
+    expect(res.warnings.some((w) => /continuation.*blank line|attaching to beat 1/i.test(w))).toBe(true);
+
+    const events = fullExpand(lmp, { loose: true });
+    const notes = events.filter((e) => e.type === 'note');
+    expect(notes).toHaveLength(3);
+    expect(notes.every((n) => n.beat === 1.0)).toBe(true);
+  });
+
+  test('blank line before | throws in strict mode, recovers with warning in loose mode', () => {
+    const lmp = `@LMP 1.0
+@BPM 120
+@TRACK 1 Drums
+@CHANNEL 10
+1.0-5.0:1/2 42
+
+| R 2.0 4.0
+`;
+    expect(() => compile(lmp, { loose: false })).toThrow(/Orphaned modifier/i);
+
+    const res = compile(lmp, { loose: true });
+    expect(res.midi).toBeInstanceOf(Uint8Array);
+    expect(res.midi.length).toBeGreaterThan(0);
+    expect(res.warnings.some((w) => /modifier.*blank line|attaching to repeating note/i.test(w))).toBe(true);
+
+    const events = fullExpand(lmp, { loose: true });
+    const notes = events.filter((e) => e.type === 'note');
+    expect(notes.map((n) => n.beat)).not.toContain(2.0);
+    expect(notes.map((n) => n.beat)).not.toContain(4.0);
+  });
+});

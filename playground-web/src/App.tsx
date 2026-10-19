@@ -1,11 +1,13 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Header } from './components/Header';
 import { EditorPanel } from './components/EditorPanel';
 import { PreviewPanel } from './components/PreviewPanel';
 import { LibraryLoader } from './components/LibraryLoader';
+import { AiComposerDrawer } from './components/AiComposerDrawer';
 import { useLmpCore } from './hooks/useLmpCore';
 import type { SourceMap } from './hooks/useLmpCore';
 import { EXAMPLES } from './constants/examples';
+import { audioEngine, type TransportState } from './utils/audioEngine';
 
 function App() {
   const { isReady, compile, decompile, onLibraryLoaded } = useLmpCore();
@@ -15,8 +17,26 @@ function App() {
   const [highlightedLine, setHighlightedLine] = useState<number | null>(null);
   const [status, setStatus] = useState('');
   const [statusError, setStatusError] = useState(false);
+  const [isAiComposerOpen, setIsAiComposerOpen] = useState(false);
   const [leftPanelPercent, setLeftPanelPercent] = useState(50);
+  const [transport, setTransport] = useState<TransportState>({
+    state: 'stopped',
+    currentBeat: 1.0,
+    totalBeats: 4.0,
+    bpm: 120,
+    tempoMultiplier: 1.0,
+    isLooping: false,
+  });
   const mainRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const unsub = audioEngine.subscribe((st) => setTransport(st));
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    audioEngine.loadMidi(midi);
+  }, [midi]);
 
   const handleResizeMove = useCallback((e: MouseEvent) => {
     const main = mainRef.current;
@@ -69,6 +89,39 @@ function App() {
     [compile]
   );
 
+  const handleValidateLmp = useCallback(
+    (text: string) => {
+      if (!compile) return { success: false, error: 'Compiler not ready' };
+      try {
+        const res = compile(text.trim());
+        if (res && typeof res === 'object' && 'midi' in res) {
+          const bytes = (res as { midi: Uint8Array }).midi;
+          return { success: true, bytes: bytes?.length || 0 };
+        }
+        if (res instanceof Uint8Array) {
+          return { success: true, bytes: res.length };
+        }
+        return { success: false, error: 'No MIDI generated' };
+      } catch (err) {
+        return { success: false, error: (err as Error).message };
+      }
+    },
+    [compile]
+  );
+
+  const handleApplyLmp = useCallback(
+    (code: string, autoPlay: boolean = false) => {
+      setLmpText(code);
+      handleCompile(code);
+      if (autoPlay) {
+        setTimeout(() => {
+          audioEngine.play();
+        }, 150);
+      }
+    },
+    [handleCompile]
+  );
+
   const handleDownload = useCallback(() => {
     if (!midi) return;
     const blob = new Blob([new Uint8Array(midi)], { type: 'audio/midi' });
@@ -92,6 +145,17 @@ function App() {
         }}
         onDownload={handleDownload}
         canDownload={!!midi}
+        playbackState={transport.state}
+        onPlay={() => audioEngine.play()}
+        onPause={() => audioEngine.pause()}
+        onStop={() => audioEngine.stop()}
+        isLooping={transport.isLooping}
+        onToggleLoop={() => audioEngine.setLoop(!transport.isLooping)}
+        tempoMultiplier={transport.tempoMultiplier}
+        onTempoMultiplierChange={(m) => audioEngine.setTempoMultiplier(m)}
+        currentBpm={transport.bpm}
+        canPlay={!!midi && midi.length > 0}
+        onOpenAiComposer={() => setIsAiComposerOpen(true)}
       />
       <main ref={mainRef} className="flex-1 flex flex-row min-h-0 min-w-0 relative">
         <div className="flex flex-col min-h-0 shrink-0" style={{ width: `${leftPanelPercent}%` }}>
@@ -112,18 +176,29 @@ function App() {
         />
         <div className="flex-1 flex flex-col min-w-0 min-h-0">
           <PreviewPanel
-          midi={midi}
-          sourceMap={sourceMap}
-          onDecompiledLmp={(text) => {
-            setLmpText(text);
-            handleCompile(text);
-          }}
-          decompile={decompile}
-          lmpText={lmpText}
-          onHighlightLine={setHighlightedLine}
+            midi={midi}
+            sourceMap={sourceMap}
+            onDecompiledLmp={(text) => {
+              setLmpText(text);
+              handleCompile(text);
+            }}
+            decompile={decompile}
+            lmpText={lmpText}
+            onHighlightLine={setHighlightedLine}
+            currentBeat={transport.currentBeat}
+            isPlaying={transport.state === 'playing'}
           />
         </div>
       </main>
+
+      {/* AI Music Composer Drawer */}
+      <AiComposerDrawer
+        isOpen={isAiComposerOpen}
+        onClose={() => setIsAiComposerOpen(false)}
+        currentLmp={lmpText}
+        onApplyLmp={handleApplyLmp}
+        onCompileValidation={handleValidateLmp}
+      />
     </div>
   );
 }

@@ -2,12 +2,27 @@
  * LMP Pass 3: Expand preprocessed lines + state into flat event list.
  */
 import { spnToMidi } from './utils.js';
+import { LMPError } from './state.js';
 
 const DEFAULT_VEL = 100;
 const DEFAULT_DUR = 0.25;
 
 const RESERVED_PITCH = new Set(['R', 'CC', 'PB', 'TEMPO', 'TS']);
 const TYPE_ORDER = { cc: 0, pb: 1, note: 2, rest: 3, tempo: 4, ts: 5 };
+
+function createError(message, lineInfo) {
+  return new LMPError(message, lineInfo);
+}
+
+function createRng(seed) {
+  let s = (seed ?? 123456789) >>> 0;
+  return function () {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 function parseBeat(token) {
   const b = parseFloat(token, 10);
@@ -39,12 +54,16 @@ function getRuleForPitch(track, pitchToken) {
   return null;
 }
 
-function velocityFromRule(track, pitchToken) {
+function velocityFromRule(track, pitchToken, rng) {
   const rule = getRuleForPitch(track, pitchToken);
   if (!rule || !rule.velRange) return undefined;
   const [min, max] = rule.velRange;
+  if (rng) {
+    return Math.floor(min + rng() * (max - min + 1));
+  }
   return Math.floor((min + max) / 2);
 }
+
 
 function durationFromRule(track, pitchToken) {
   const rule = getRuleForPitch(track, pitchToken);
@@ -91,20 +110,35 @@ function beatsMatch(a, b) {
  * @returns {{ type: string, trackIndex: number, beat: number, midi?: number, velocity?: number, duration?: number }[]}
  */
 function applyModifiers(notes, modifierLines) {
-  const velOverrides = new Map();
-  const durOverrides = new Map();
-  const restBeats = new Set();
+  const velRules = [];
+  const durRules = [];
+  const restBeats = [];
+  const restRanges = [];
 
   for (const { tokens } of modifierLines) {
-    const kind = tokens[1];
+    const kind = (tokens[1] || '').toUpperCase();
     if (kind === 'R') {
-      for (let k = 2; k < tokens.length; k++) {
-        const b = parseFloat(tokens[k], 10);
-        if (!Number.isNaN(b)) restBeats.add(b);
+      const rest = tokens.slice(2).join(' ');
+      const clean = rest.replace(/[\[\]]/g, ' ');
+      const parts = clean.split(/[\s,]+/);
+      for (const p of parts) {
+        if (!p) continue;
+        const range = p.match(/^([\d.]+)-([\d.]+)$/);
+        if (range) {
+          const start = parseFloat(range[1], 10);
+          const end = parseFloat(range[2], 10);
+          if (!Number.isNaN(start) && !Number.isNaN(end)) {
+            restRanges.push({ start, end });
+          }
+        } else {
+          const b = parseFloat(p, 10);
+          if (!Number.isNaN(b)) restBeats.push(b);
+        }
       }
     } else if (kind === 'V') {
       const rest = tokens.slice(2).join(' ');
-      const groups = rest.split(',').map((s) => s.trim());
+      const sanitized = rest.replace(/\[([^\]]+)\]/g, (_, inner) => `[${inner.replace(/,/g, ' ')}]`);
+      const groups = sanitized.split(',').map((s) => s.trim());
       for (const g of groups) {
         const parts = g.split(/\s+/);
         const val = parseInt(parts[parts.length - 1], 10);
@@ -115,18 +149,19 @@ function applyModifiers(notes, modifierLines) {
           if (range) {
             const start = parseFloat(range[1], 10);
             const end = parseFloat(range[2], 10);
-            for (const n of notes) {
-              if (n.beat >= start && n.beat < end) velOverrides.set(n.beat, val);
-            }
+            velRules.push({ type: 'range', start, end, val });
           } else {
             const single = parseFloat(spec.replace(/[\[\]]/g, ''), 10);
-            if (!Number.isNaN(single)) velOverrides.set(single, val);
+            if (!Number.isNaN(single)) {
+              velRules.push({ type: 'single', target: single, val });
+            }
           }
         }
       }
     } else if (kind === 'D') {
       const rest = tokens.slice(2).join(' ');
-      const groups = rest.split(',').map((s) => s.trim());
+      const sanitized = rest.replace(/\[([^\]]+)\]/g, (_, inner) => `[${inner.replace(/,/g, ' ')}]`);
+      const groups = sanitized.split(',').map((s) => s.trim());
       for (const g of groups) {
         const parts = g.split(/\s+/);
         const val = parseFloat(parts[parts.length - 1], 10);
@@ -137,12 +172,12 @@ function applyModifiers(notes, modifierLines) {
           if (range) {
             const start = parseFloat(range[1], 10);
             const end = parseFloat(range[2], 10);
-            for (const n of notes) {
-              if (n.beat >= start && n.beat < end) durOverrides.set(n.beat, val);
-            }
+            durRules.push({ type: 'range', start, end, val });
           } else {
             const single = parseFloat(spec.replace(/[\[\]]/g, ''), 10);
-            if (!Number.isNaN(single)) durOverrides.set(single, val);
+            if (!Number.isNaN(single)) {
+              durRules.push({ type: 'single', target: single, val });
+            }
           }
         }
       }
@@ -150,12 +185,32 @@ function applyModifiers(notes, modifierLines) {
   }
 
   for (const n of notes) {
-    if (velOverrides.has(n.beat)) n.velocity = velOverrides.get(n.beat);
-    if (durOverrides.has(n.beat)) n.duration = durOverrides.get(n.beat);
+    for (const r of velRules) {
+      if (r.type === 'single') {
+        if (beatsMatch(n.beat, r.target)) n.velocity = r.val;
+      } else if (r.type === 'range') {
+        if (n.beat >= r.start - TOLERANCE && n.beat < r.end - TOLERANCE) {
+          n.velocity = r.val;
+        }
+      }
+    }
+    for (const r of durRules) {
+      if (r.type === 'single') {
+        if (beatsMatch(n.beat, r.target)) n.duration = r.val;
+      } else if (r.type === 'range') {
+        if (n.beat >= r.start - TOLERANCE && n.beat < r.end - TOLERANCE) {
+          n.duration = r.val;
+        }
+      }
+    }
   }
+
   return notes.filter((n) => {
     for (const rb of restBeats) {
       if (beatsMatch(n.beat, rb)) return false;
+    }
+    for (const rr of restRanges) {
+      if (n.beat >= rr.start - TOLERANCE && n.beat < rr.end - TOLERANCE) return false;
     }
     return true;
   });
@@ -163,6 +218,7 @@ function applyModifiers(notes, modifierLines) {
 
 export function expand(lines, state, options = {}) {
   const { loose = false, warnings = [] } = options;
+  const rng = state.seed !== undefined ? createRng(state.seed) : undefined;
   const events = [];
   let currentTrackIndex = -1;
   const map = state.map || {};
@@ -171,8 +227,28 @@ export function expand(lines, state, options = {}) {
   let pendingModifiers = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const { type, tokens, sourceLine } = lines[i];
+    const line = lines[i];
+    const { type, tokens, sourceLine, blankBefore } = line;
     if (!tokens.length) continue;
+
+    if (blankBefore) {
+      if (loose && type === 'modifier' && lastRepeatingNotes) {
+        warnings.push(`LMP [loose]: Detached modifier (|) after blank line at line ${sourceLine}; attaching to repeating note`);
+      } else {
+        if (lastRepeatingNotes) {
+          const applied = applyModifiers(lastRepeatingNotes, pendingModifiers);
+          events.push(...applied);
+          lastRepeatingNotes = null;
+          pendingModifiers = [];
+        }
+      }
+
+      if (loose && type === 'continuation' && lastBaseBeat !== null) {
+        warnings.push(`LMP [loose]: Detached continuation (+) after blank line at line ${sourceLine}; attaching to beat ${lastBaseBeat}`);
+      } else {
+        lastBaseBeat = null;
+      }
+    }
 
     if (type === 'header') {
       const key = tokens[0].toUpperCase();
@@ -192,6 +268,10 @@ export function expand(lines, state, options = {}) {
           if (p >= 0 && p <= 127) state.tracks[currentTrackIndex].program = p;
         }
       }
+      if (lastRepeatingNotes) {
+        const applied = applyModifiers(lastRepeatingNotes, pendingModifiers);
+        events.push(...applied);
+      }
       lastBaseBeat = null;
       lastRepeatingNotes = null;
       pendingModifiers = [];
@@ -199,7 +279,23 @@ export function expand(lines, state, options = {}) {
     }
 
     if (type === 'continuation') {
-      if (lastBaseBeat === null) throw new Error('LMP: Orphaned same-beat continuation (+).');
+      if (lastBaseBeat === null) {
+        if (loose) {
+          warnings.push(`LMP [loose]: Orphaned continuation (+) with no preceding note at line ${sourceLine}; skipping`);
+          continue;
+        }
+        throw createError('LMP: Orphaned same-beat continuation (+).', line);
+      }
+      while (tokens.length > 2 && (tokens[1].endsWith(',') || tokens[2] === ',' || tokens[2].startsWith(','))) {
+        if (tokens[2] === ',') {
+          tokens[1] = tokens[1].endsWith(',') ? tokens[1] : (tokens[1] + ',');
+        } else if (tokens[2].startsWith(',')) {
+          tokens[1] = tokens[1].endsWith(',') ? (tokens[1] + tokens[2].slice(1)) : (tokens[1] + tokens[2]);
+        } else {
+          tokens[1] = tokens[1].endsWith(',') ? (tokens[1] + tokens[2]) : (tokens[1] + ',' + tokens[2]);
+        }
+        tokens.splice(2, 1);
+      }
       if (currentTrackIndex < 0) continue;
       const pitchStr = tokens[1];
       if (!pitchStr) continue;
@@ -234,12 +330,29 @@ export function expand(lines, state, options = {}) {
     }
 
     if (type === 'modifier') {
-      if (lastRepeatingNotes === null) throw new Error('LMP: Orphaned modifier (|) — must follow a repeating note.');
+      if (lastRepeatingNotes === null) {
+        if (loose) {
+          warnings.push(`LMP [loose]: Orphaned modifier (|) with no preceding repeating note at line ${sourceLine}; skipping`);
+          continue;
+        }
+        throw createError('LMP: Orphaned modifier (|) — must follow a repeating note.', line);
+      }
       pendingModifiers.push({ type, tokens });
       continue;
     }
 
     if (type === 'event') {
+      while (tokens.length > 2 && (tokens[1].endsWith(',') || tokens[2] === ',' || tokens[2].startsWith(','))) {
+        if (tokens[2] === ',') {
+          tokens[1] = tokens[1].endsWith(',') ? tokens[1] : (tokens[1] + ',');
+        } else if (tokens[2].startsWith(',')) {
+          tokens[1] = tokens[1].endsWith(',') ? (tokens[1] + tokens[2].slice(1)) : (tokens[1] + tokens[2]);
+        } else {
+          tokens[1] = tokens[1].endsWith(',') ? (tokens[1] + tokens[2]) : (tokens[1] + ',' + tokens[2]);
+        }
+        tokens.splice(2, 1);
+      }
+
       if (lastRepeatingNotes) {
         const applied = applyModifiers(lastRepeatingNotes, pendingModifiers);
         events.push(...applied);
@@ -249,7 +362,7 @@ export function expand(lines, state, options = {}) {
 
       if (currentTrackIndex < 0) {
         const p = (tokens[1] || '').toUpperCase();
-        if (p === 'TEMPO' || p === 'TS') throw new Error('LMP: TEMPO and TS must appear after at least one @TRACK.');
+        if (p === 'TEMPO' || p === 'TS') throw createError('LMP: TEMPO and TS must appear after at least one @TRACK.', line);
         continue;
       }
       const range = parseRepeatRange(tokens[0]);
@@ -264,7 +377,10 @@ export function expand(lines, state, options = {}) {
 
       if (pitch && pitch.reserved) {
         if (pitch.reserved === 'R') {
-          events.push({ type: 'rest', trackIndex: currentTrackIndex, beat: beat ?? range.beats[0] });
+          const beats = range ? range.beats : [beat];
+          for (const b of beats) {
+            events.push({ type: 'rest', trackIndex: currentTrackIndex, beat: b });
+          }
           continue;
         }
         if (pitch.reserved === 'CC') {
@@ -273,14 +389,14 @@ export function expand(lines, state, options = {}) {
               warnings.push(`LMP [loose]: Invalid CC row at beat ${beat ?? tokens[0]} (underscore invalid); skipping`);
               continue;
             }
-            throw new Error('LMP: CC requires numeric controller number and value; underscore is invalid.');
+            throw createError('LMP: CC requires numeric controller number and value; underscore is invalid.', line);
           }
           if (tokens[2] === undefined || tokens[3] === undefined) {
             if (loose) {
               warnings.push(`LMP [loose]: Invalid CC row at beat ${beat ?? tokens[0]} (missing controller number or value); skipping`);
               continue;
             }
-            throw new Error('LMP: CC requires both controller number (column 3) and value (column 4).');
+            throw createError('LMP: CC requires both controller number (column 3) and value (column 4).', line);
           }
           const num = parseInt(tokens[2], 10);
           const val = parseInt(tokens[3], 10);
@@ -291,14 +407,17 @@ export function expand(lines, state, options = {}) {
             }
             continue;
           }
-          events.push({
-            type: 'cc',
-            trackIndex: currentTrackIndex,
-            channel: state.tracks[currentTrackIndex]?.channel,
-            beat: beat ?? 0,
-            number: Math.max(0, Math.min(127, num)),
-            value: Math.max(0, Math.min(127, val)),
-          });
+          const beats = range ? range.beats : [beat ?? 0];
+          for (const b of beats) {
+            events.push({
+              type: 'cc',
+              trackIndex: currentTrackIndex,
+              channel: state.tracks[currentTrackIndex]?.channel,
+              beat: b,
+              number: Math.max(0, Math.min(127, num)),
+              value: Math.max(0, Math.min(127, val)),
+            });
+          }
           continue;
         }
         if (pitch.reserved === 'PB') {
@@ -308,28 +427,31 @@ export function expand(lines, state, options = {}) {
               warnings.push(`LMP [loose]: Invalid PB row at beat ${beat ?? tokens[0]} (missing or invalid bend value); skipping`);
               continue;
             }
-            throw new Error('LMP: PB requires a valid bend value in column 3.');
+            throw createError('LMP: PB requires a valid bend value in column 3.', line);
           }
           const semitones = raw;
           const pbrange = state.tracks[currentTrackIndex]?.pbrange ?? 2;
           const clamped = Math.max(-pbrange, Math.min(pbrange, semitones));
-          events.push({
-            type: 'pb',
-            trackIndex: currentTrackIndex,
-            channel: state.tracks[currentTrackIndex]?.channel,
-            beat: beat ?? 0,
-            semitones: clamped,
-          });
+          const beats = range ? range.beats : [beat ?? 0];
+          for (const b of beats) {
+            events.push({
+              type: 'pb',
+              trackIndex: currentTrackIndex,
+              channel: state.tracks[currentTrackIndex]?.channel,
+              beat: b,
+              semitones: clamped,
+            });
+          }
           continue;
         }
         if (pitch.reserved === 'TEMPO') {
-          if (state.tracks.length === 0) throw new Error('LMP: TEMPO must appear after at least one @TRACK.');
+          if (state.tracks.length === 0) throw createError('LMP: TEMPO must appear after at least one @TRACK.', line);
           const bpm = parseFloat(tokens[2], 10);
           events.push({ type: 'tempo', trackIndex: 0, beat: beat ?? 0, bpm: Number.isNaN(bpm) ? 120 : bpm });
           continue;
         }
         if (pitch.reserved === 'TS') {
-          if (state.tracks.length === 0) throw new Error('LMP: Time signature (TS) must appear after at least one @TRACK.');
+          if (state.tracks.length === 0) throw createError('LMP: Time signature (TS) must appear after at least one @TRACK.', line);
           const num = parseInt(tokens[2], 10);
           const denom = parseInt(tokens[3], 10);
           events.push({ type: 'ts', trackIndex: 0, beat: beat ?? 0, num: Number.isNaN(num) ? 4 : num, denom: Number.isNaN(denom) ? 4 : denom });
@@ -340,10 +462,11 @@ export function expand(lines, state, options = {}) {
       const track = state.tracks[currentTrackIndex];
       let velocity = tokens[2] !== undefined && tokens[2] !== '_' ? (() => {
         const v = parseInt(tokens[2], 10);
-        return Number.isNaN(v) ? (velocityFromRule(track, tokens[1]) ?? track.defaultVel ?? DEFAULT_VEL) : Math.max(1, Math.min(127, v));
-      })() : (velocityFromRule(track, tokens[1]) ?? track.defaultVel ?? DEFAULT_VEL);
+        return Number.isNaN(v) ? (velocityFromRule(track, tokens[1], rng) ?? track.defaultVel ?? DEFAULT_VEL) : Math.max(1, Math.min(127, v));
+      })() : (velocityFromRule(track, tokens[1], rng) ?? track.defaultVel ?? DEFAULT_VEL);
       let duration = tokens[3] !== undefined ? (() => {
         const d = parseFloat(tokens[3], 10);
+
         return Number.isNaN(d) ? (durationFromRule(track, tokens[1]) ?? track.defaultDur ?? DEFAULT_DUR) : d;
       })() : (durationFromRule(track, tokens[1]) ?? (hasLegato(track) ? undefined : (track.defaultDur ?? DEFAULT_DUR)));
 
@@ -352,7 +475,7 @@ export function expand(lines, state, options = {}) {
         const resolved = chordPitches.map((s) => resolvePitch(s, map)).filter((p) => p && !p.reserved);
         for (let ci = 0; ci < resolved.length; ci++) {
           const p = resolved[ci];
-          const vel = velocityFromRule(track, chordPitches[ci]) ?? velocity;
+          const vel = velocityFromRule(track, chordPitches[ci], rng) ?? velocity;
           const dur = durationFromRule(track, chordPitches[ci]) ?? duration ?? (track.defaultDur ?? DEFAULT_DUR);
           events.push({
             type: 'note',

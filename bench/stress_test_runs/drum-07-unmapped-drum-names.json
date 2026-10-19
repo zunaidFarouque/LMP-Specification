@@ -1,0 +1,20 @@
+{
+  "id": "drum-07-unmapped-drum-names",
+  "dimension": "dim2_complex_drums",
+  "name": "Unmapped drum names (kick, snare) without @MAP declaration",
+  "expectedCategory": "syntax_error",
+  "promptAdherence": "missing_declaration",
+  "tokens": 72,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 50
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 50
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n1.0 kick 110 0.25\n2.0 snare 110 0.25\n3.0 kick 110 0.25\n4.0 snare 110 0.25\n"
+}

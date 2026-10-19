@@ -1,0 +1,20 @@
+{
+  "id": "mel-02-spaces-in-chord",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Space inside comma-separated chord (C4, E4, G4, B4)",
+  "expectedCategory": "syntax_error",
+  "promptAdherence": "common_llm_slip",
+  "tokens": 49,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 83
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 83
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Piano\n@CHANNEL 1\n1.0 C4, E4, G4, B4 80 1.0\n"
+}

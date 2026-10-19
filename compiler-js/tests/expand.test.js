@@ -236,4 +236,109 @@ describe('expand', () => {
     expect(notes[1].duration).toBeCloseTo(1 - gapBeats, 5);
     expect(notes[2].duration).toBe(1);
   });
+
+  test('whitespace in chords parses all notes into chord list', () => {
+    const events = fullExpand(`
+@TRACK 1 P
+@CHANNEL 1
+1.0 C4, E4, G4, B4 80 1.0
+`);
+    const notes = events.filter((e) => e.type === 'note').sort((a, b) => a.midi - b.midi);
+    expect(notes).toHaveLength(4);
+    expect(notes.map((n) => n.midi)).toEqual([60, 64, 67, 71]);
+    expect(notes.every((n) => n.velocity === 80)).toBe(true);
+    expect(notes.every((n) => n.duration === 1.0)).toBe(true);
+  });
+
+  test('bracketed modifier with commas (| V [1.5, 2.5, 3.5] 110)', () => {
+    const events = fullExpand(`
+@TRACK 1 Drums
+@CHANNEL 10
+1.0-5.0:1/2 42 80 0.25
+| V [1.5, 2.5, 3.5] 110
+`);
+    const notes = events.filter((e) => e.type === 'note');
+    const accented = notes.filter((n) => n.velocity === 110);
+    expect(accented.map((n) => n.beat)).toEqual([1.5, 2.5, 3.5]);
+  });
+
+  test('case-insensitive modifier kinds (| r, | v, | d)', () => {
+    const events = fullExpand(`
+@TRACK 1 Drums
+@CHANNEL 10
+1.0-5.0:1/2 42 80 0.25
+| r 2.0 4.0
+| v [1.5 2.5] 115
+`);
+    const notes = events.filter((e) => e.type === 'note');
+    expect(notes.map((n) => n.beat)).not.toContain(2.0);
+    expect(notes.map((n) => n.beat)).not.toContain(4.0);
+    const v115 = notes.filter((n) => n.velocity === 115);
+    expect(v115.map((n) => n.beat)).toEqual([1.5, 2.5]);
+  });
+
+  test('repeating range expansion on CC, PB, and R', () => {
+    const events = fullExpand(`
+@TRACK 1 Synth
+@CHANNEL 1
+1.0-3.0:1/2 CC 11 60
+1.0-3.0:1/2 PB 1.5
+1.0-3.0:1/2 R
+`);
+    const ccs = events.filter((e) => e.type === 'cc');
+    const pbs = events.filter((e) => e.type === 'pb');
+    const rests = events.filter((e) => e.type === 'rest');
+    expect(ccs).toHaveLength(4);
+    expect(ccs.map((c) => c.beat)).toEqual([1.0, 1.5, 2.0, 2.5]);
+    expect(ccs.every((c) => c.number === 11 && c.value === 60)).toBe(true);
+
+    expect(pbs).toHaveLength(4);
+    expect(pbs.map((p) => p.beat)).toEqual([1.0, 1.5, 2.0, 2.5]);
+    expect(pbs.every((p) => p.semitones === 1.5)).toBe(true);
+
+    expect(rests).toHaveLength(4);
+    expect(rests.map((r) => r.beat)).toEqual([1.0, 1.5, 2.0, 2.5]);
+  });
+
+  test('repeating notes immediately before header are flushed and preserved', () => {
+    const events = fullExpand(`
+@TRACK 1 Drums
+@CHANNEL 10
+1.0-5.0:1/4 42
+| R 2.0
+@TRACK 2 Bass
+@CHANNEL 1
+1.0 C2 100 1.0
+`);
+    const track1Notes = events.filter((e) => e.type === 'note' && e.trackIndex === 0);
+    const track2Notes = events.filter((e) => e.type === 'note' && e.trackIndex === 1);
+    expect(track1Notes).toHaveLength(15);
+    expect(track2Notes).toHaveLength(1);
+  });
+
+  test('bracketed and comma-separated rest modifiers (| R [2.0, 4.0])', () => {
+    const events = fullExpand(`
+@TRACK 1 Drums
+@CHANNEL 10
+1.0-5.0:1/2 42
+| R [2.0, 4.0]
+`);
+    const notes = events.filter((e) => e.type === 'note');
+    expect(notes).toHaveLength(6);
+    expect(notes.map((n) => n.beat)).not.toContain(2.0);
+    expect(notes.map((n) => n.beat)).not.toContain(4.0);
+  });
+
+  test('chord tokens merged when comma is tokenized separately', () => {
+    const lines = [
+      { type: 'header', tokens: ['@TRACK', '1', 'Piano'] },
+      { type: 'header', tokens: ['@CHANNEL', '1'] },
+      { type: 'event', tokens: ['1.0', 'C4', ',', 'E4', '80', '1.0'] },
+    ];
+    const state = buildState(lines);
+    const events = expand(lines, state);
+    const notes = events.filter((e) => e.type === 'note');
+    expect(notes).toHaveLength(2);
+    expect(notes.map((n) => n.midi)).toEqual([60, 64]);
+  });
 });

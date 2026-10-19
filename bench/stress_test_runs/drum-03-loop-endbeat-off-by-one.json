@@ -1,0 +1,20 @@
+{
+  "id": "drum-03-loop-endbeat-off-by-one",
+  "dimension": "dim2_complex_drums",
+  "name": "Loop EndBeat off-by-one (1.0-4.0:1/4 cuts off beat 4.0 in 4/4 bar)",
+  "expectedCategory": "musical_boundary_error",
+  "promptAdherence": "arithmetic_drift",
+  "tokens": 82,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 146
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 146
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Drums\n@CHANNEL 10\n// Intended to fill full 4-beat bar, but 4.0 is exclusive so beat 4 is missing!\n1.0-4.0:1/4 42 90 0.25\n"
+}

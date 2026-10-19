@@ -1,6 +1,6 @@
 {
   "name": "lmp-core",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Lean Musical Protocol (LMP) compiler — text to MIDI",
   "type": "module",
   "main": "dist/lmp-core.v1.min.js",
@@ -22,8 +22,7 @@
   "keywords": ["lmp", "midi", "music", "llm", "compiler"],
   "license": "MIT",
   "dependencies": {
-    "midi-file": "^1.2.4",
-    "midi-writer-js": "^2.0.0"
+    "midi-file": "^1.2.4"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"

@@ -1,0 +1,20 @@
+{
+  "id": "odd-01-clean-7-8-progression",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Clean 7/8 progressive metal groove (3.5 quarter notes per bar)",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 182,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 147
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 147
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Drums\n@CHANNEL 10\n@DEFAULT_DUR 0.25\n\n// Bar 1 (beats 1.0 to 4.5)\n1.0 36 120\n1.5 36 110\n2.0 38 125\n2.5 36 110\n3.0 36 120\n3.25 36 115\n\n// Bar 2 (starts at beat 4.5, spans to 8.0)\n4.5 36 120\n5.0 36 110\n5.5 38 125\n6.0 36 110\n6.5 36 120\n6.75 36 115\n"
+}

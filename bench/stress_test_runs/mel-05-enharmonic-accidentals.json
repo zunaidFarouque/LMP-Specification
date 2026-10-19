@@ -1,0 +1,20 @@
+{
+  "id": "mel-05-enharmonic-accidentals",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Enharmonic sharp and flat combinations (Eb4, F#4, Bb3, Db5)",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 91,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 152
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 152
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Neo_Soul\n@CHANNEL 1\n1.0 Eb4,G4,Bb4,Db5 85 1.0\n2.0 Ab3,C4,Eb4,Gb4 85 1.0\n3.0 Db4,F4,Ab4,C5 85 1.0\n"
+}

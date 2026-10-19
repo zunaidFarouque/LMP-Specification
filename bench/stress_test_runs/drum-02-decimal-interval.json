@@ -1,0 +1,20 @@
+{
+  "id": "drum-02-decimal-interval",
+  "dimension": "dim2_complex_drums",
+  "name": "Decimal interval in repeating note (1.0-5.0:0.25 42)",
+  "expectedCategory": "syntax_strict_error",
+  "promptAdherence": "common_llm_slip",
+  "tokens": 44,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 178
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 178
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 124\n@TRACK 1 Drums\n@CHANNEL 10\n1.0-5.0:0.25 42 90 0.25\n"
+}

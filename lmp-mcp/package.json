@@ -1,0 +1,23 @@
+{
+  "name": "lmp-mcp",
+  "version": "2.0.0",
+  "description": "Official Model Context Protocol (MCP) server for Lean Musical Protocol (LMP)",
+  "main": "src/index.js",
+  "bin": {
+    "lmp-mcp": "./bin/lmp-mcp.js"
+  },
+  "type": "module",
+  "scripts": {
+    "start": "node bin/lmp-mcp.js",
+    "test": "bun test"
+  },
+  "keywords": [
+    "lmp",
+    "mcp",
+    "midi",
+    "music",
+    "model-context-protocol"
+  ],
+  "author": "Zunaid Farouque",
+  "license": "MIT"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "odd-06-triplet-polyrhythm-3-against-2",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Triplet polyrhythm (3 against 2) within quarter notes",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 83,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 85
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 85
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TIMESIG 4/4\n@TRACK 1 Lead\n@CHANNEL 1\n1.0 C5 90 0.333\n1.333 D5 90 0.333\n1.667 E5 90 0.333\n2.0 G5 95 1.0\n"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "mel-07-legato-unterminated-phrase",
+  "dimension": "dim1_melodic_harmonic",
+  "name": "Legato phrase without terminating explicit length on final note",
+  "expectedCategory": "edge_case_semantic",
+  "promptAdherence": "partial",
+  "tokens": 59,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 85
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 85
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 120\n@TRACK 1 Flute\n@CHANNEL 1\n@RULE LEGATO=TRUE\n1.0 C5\n2.0 D5\n3.0 E5\n4.0 G5\n"
+}

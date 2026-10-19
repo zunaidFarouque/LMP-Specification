@@ -1,0 +1,20 @@
+{
+  "id": "drum-01-clean-modifiers",
+  "dimension": "dim2_complex_drums",
+  "name": "Clean repeating 16th hats with | V accent and | R rest modifiers",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 131,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 194
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 194
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 124\n@TRACK 1 Drums\n@CHANNEL 10\n@DEFAULT_DUR 0.25\n@DEFAULT_VEL 100\n@RULE 42 VEL=70-85\n\n1.0 36 120\n2.0 38 115\n3.0 36 118\n4.0 38 115\n\n1.0-5.0:1/4 42\n| R 2.0 4.0\n| V [1.5 2.5 3.5 4.5] 110\n"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "odd-09-asymmetric-accent-subdivision-7-8",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Asymmetric 2+2+3 accent subdivision in 7/8 groove",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 155,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 112
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 112
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 140\n@TIMESIG 7/8\n@TRACK 1 Bass\n@CHANNEL 1\n// 2 + 2 + 3 grouping: downbeats at 1.0, 2.0, 3.0\n1.0 D2 110 0.5\n1.5 D2 75 0.5\n2.0 F2 110 0.5\n2.5 F2 75 0.5\n3.0 G2 115 0.5\n3.5 G2 80 0.5\n4.0 A2 80 0.5\n"
+}

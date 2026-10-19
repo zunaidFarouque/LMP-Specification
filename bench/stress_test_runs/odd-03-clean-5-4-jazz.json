@@ -1,0 +1,20 @@
+{
+  "id": "odd-03-clean-5-4-jazz",
+  "dimension": "dim5_polyrhythm_odd_meter",
+  "name": "Clean 5/4 jazz comping (5.0 quarter notes per bar)",
+  "expectedCategory": "clean",
+  "promptAdherence": "high",
+  "tokens": 211,
+  "strict": {
+    "ok": true,
+    "error": null,
+    "midiLength": 248
+  },
+  "loose": {
+    "ok": true,
+    "warnings": [],
+    "error": null,
+    "midiLength": 248
+  },
+  "rawLmp": "@LMP 1.0\n@BPM 160\n@TIMESIG 5/4\n@TRACK 1 Piano\n@CHANNEL 1\n// Bar 1: beats 1.0 to 6.0 (span = 5.0 beats)\n1.0 C3,E3,G3,Bb3 80 1.5\n2.5 F3,A3,C4,Eb4 80 1.5\n4.0 G3,B3,D4,F4 80 2.0\n\n// Bar 2: starts at beat 6.0\n6.0 C3,E3,G3,Bb3 80 1.5\n7.5 F3,A3,C4,Eb4 80 1.5\n9.0 G3,B3,D4,F4 80 2.0\n"
+}
