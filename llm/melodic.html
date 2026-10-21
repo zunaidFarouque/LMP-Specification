@@ -3,37 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LMP AI: Melodic — LMP</title>
+  <title>LMP AI: Melodic & Chords Guide — LMP</title>
+  <link rel="icon" type="image/svg+xml" href="/LMP-Specification/studio/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
   <style>
-    :root{--bg:#0f1419;--fg:#e2e8f0;--muted:#94a3b8;--accent:#f59e0b;--card:#1e293b}
+    :root{--bg:#0f1419;--fg:#e2e8f0;--muted:#94a3b8;--accent:#f59e0b;--card:#1e293b;--border:#334155}
     *{box-sizing:border-box}
     body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;min-height:100vh;padding:2rem 1.5rem}
-    .container{max-width:800px;margin:0 auto}
-    h1{font-size:1.75rem;margin:0 0 1rem}
-    h2{font-size:1.25rem;margin:2rem 0 0.75rem;color:var(--accent)}
-    h3{font-size:1.1rem;margin:1.5rem 0 0.5rem}
+    .container{max-width:820px;margin:0 auto}
+    h1{font-size:1.85rem;margin:0 0 1rem;color:#f8fafc}
+    h2{font-size:1.35rem;margin:2rem 0 0.75rem;color:var(--accent)}
+    h3{font-size:1.15rem;margin:1.5rem 0 0.5rem;color:#f1f5f9}
     p{margin:0 0 1rem}
     ul,ol{margin:0 0 1rem;padding-left:1.5rem}
-    li{margin-bottom:0.25rem}
+    li{margin-bottom:0.35rem}
     pre,code{font-family:'JetBrains Mono',monospace;font-size:0.9em;background:var(--card);padding:0.2em 0.4em;border-radius:4px}
-    pre{margin:1rem 0;padding:1rem;overflow-x:auto}
-    table{border-collapse:collapse;width:100%;margin:1rem 0}
-    th,td{border:1px solid var(--card);padding:0.5rem 0.75rem;text-align:left}
-    th{background:var(--card);color:var(--accent)}
-    a{color:var(--accent)}
+    pre{margin:1rem 0;padding:1rem;overflow-x:auto;border:1px solid var(--border)}
+    pre code{padding:0;background:transparent}
+    table{border-collapse:collapse;width:100%;margin:1.5rem 0;font-size:0.95rem}
+    th,td{border:1px solid var(--border);padding:0.6rem 0.85rem;text-align:left}
+    th{background:var(--card);color:var(--accent);font-weight:600}
+    tr:nth-child(even){background:rgba(30,41,59,0.35)}
+    a{color:var(--accent);text-decoration:none}
     a:hover{text-decoration:underline}
+    blockquote{margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid var(--accent);background:rgba(245,158,11,0.08);border-radius:0 6px 6px 0}
   </style>
 </head>
 <body>
   <div class="container">
     
-<nav style="margin-bottom:2rem;display:flex;gap:0.75rem;flex-wrap:wrap">
+<nav style="margin-bottom:2rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
   <a href="/LMP-Specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Home</a>
   <a href="/LMP-Specification/specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Specification</a>
   <a href="/LMP-Specification/llm/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">LLM Guides</a>
-  <a href="/LMP-Specification/studio/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px">Studio</a>
+  <a href="/LMP-Specification/release-notes/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Release Notes (v2)</a>
+  <a href="/LMP-Specification/studio/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px;font-weight:600">Studio</a>
 </nav>
     <div class="content"><h1>LMP — Lean Musical Protocol (AI Teaching: Melodic)</h1>
 <h2>1. Adapter Preamble</h2>

@@ -3,88 +3,295 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Lean Musical Protocol (LMP)</title>
+  <title>Lean Musical Protocol (LMP) v2.0</title>
   <link rel="icon" type="image/svg+xml" href="/LMP-Specification/studio/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    :root { --bg: #0f1419; --fg: #e2e8f0; --muted: #94a3b8; --accent: #f59e0b; --card: #1e293b; }
+    :root {
+      --bg: #0f1419;
+      --fg: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-hover: #fbbf24;
+      --card: #1e293b;
+      --border: #334155;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; }
-    .container { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem; }
-    h1 { font-size: 2.25rem; font-weight: 700; margin: 0 0 0.5rem; }
-    .tagline { color: var(--muted); font-size: 1.125rem; margin-bottom: 2.5rem; }
-    h2 { font-size: 1.25rem; font-weight: 600; margin: 2rem 0 0.75rem; color: var(--accent); }
+    body {
+      margin: 0;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 2.5rem 1.5rem;
+    }
+    .header-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      margin-bottom: 0.75rem;
+    }
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin: 0 0 0.5rem;
+      color: #f8fafc;
+    }
+    .tagline {
+      color: var(--muted);
+      font-size: 1.15rem;
+      margin-bottom: 2rem;
+    }
+    .badges-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+    .pill {
+      font-size: 0.85rem;
+      padding: 0.25rem 0.65rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #cbd5e1;
+    }
+    .pill strong {
+      color: var(--accent);
+    }
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin: 2rem 0;
+    }
+    .nav a {
+      display: inline-block;
+      padding: 0.55rem 1.1rem;
+      background: var(--card);
+      color: var(--fg);
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: background 0.15s, border-color 0.15s;
+      border: 1px solid var(--border);
+    }
+    .nav a:hover {
+      background: #334155;
+    }
+    .nav a.primary {
+      background: var(--accent);
+      color: #1e293b;
+      font-weight: 600;
+      border-color: var(--accent);
+    }
+    .nav a.primary:hover {
+      background: var(--accent-hover);
+    }
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 2.5rem 0 0.75rem;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
     p { margin: 0 0 1rem; }
-    ul { margin: 0 0 1rem; padding-left: 1.5rem; }
-    li { margin-bottom: 0.25rem; }
-    .nav { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 2.5rem 0; }
-    .nav a { display: inline-block; padding: 0.5rem 1rem; background: var(--card); color: var(--fg); text-decoration: none; border-radius: 8px; font-weight: 500; transition: background 0.2s; }
-    .nav a:hover { background: #334155; }
-    .nav a.primary { background: var(--accent); color: #1e293b; }
-    .nav a.primary:hover { background: #fbbf24; }
-    footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--card); color: var(--muted); font-size: 0.875rem; }
-    a { color: var(--accent); }
-    a:hover { text-decoration: underline; }
+    ul, ol { margin: 0 0 1rem; padding-left: 1.5rem; }
+    li { margin-bottom: 0.35rem; }
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9em;
+      background: var(--card);
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+    }
+    pre {
+      margin: 1rem 0;
+      padding: 1rem;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+    }
+    pre code {
+      padding: 0;
+      background: transparent;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1.25rem 0;
+      font-size: 0.92rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.55rem 0.8rem;
+      text-align: left;
+    }
+    th {
+      background: var(--card);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background: rgba(30, 41, 59, 0.35);
+    }
+    .card-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin: 1.25rem 0;
+    }
+    .prompt-box {
+      background: #090d12;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 0.9rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      margin: 0.75rem 0;
+      overflow-x: auto;
+      user-select: all;
+    }
+    footer {
+      margin-top: 3.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.875rem;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <div class="container">
+    <div class="header-badge">Official Release v2.0.0</div>
     <h1>Lean Musical Protocol (LMP)</h1>
-    <p class="tagline">An ultra-lean, token-efficient text-to-MIDI music sequencing protocol engineered for Large Language Models and autonomous agent workflows.</p>
+    <p class="tagline">An ultra-lean, token-efficient text-to-MIDI music sequencing protocol engineered specifically for Large Language Models and autonomous agent workflows.</p>
+
+    <div class="badges-row">
+      <span class="pill"><strong>4.04x</strong> Token Compression</span>
+      <span class="pill"><strong>98.0%</strong> First-Pass SVR</span>
+      <span class="pill"><strong>100.0%</strong> F1 Reconstruction</span>
+      <span class="pill"><strong>Zero</strong> Sandbox Needed</span>
+      <span class="pill"><strong>MCP</strong> Tool Support</span>
+    </div>
 
     <nav class="nav">
-      <a href="/LMP-Specification/specification/" class="primary">Specification</a>
+      <a href="/LMP-Specification/studio/" class="primary">Launch Web Studio</a>
+      <a href="/LMP-Specification/specification/">Specification</a>
       <a href="/LMP-Specification/llm/">LLM Guides</a>
-      <a href="/LMP-Specification/studio/">Web Studio</a>
-      <a href="/LMP-Specification/api.html">Compile LMP ↔ MIDI</a>
+      <a href="/LMP-Specification/release-notes/">Release Notes (v2)</a>
+      <a href="/LMP-Specification/api.html">Compile API</a>
     </nav>
 
-    <h2>What is LMP?</h2>
-    <p>The <strong>Lean Musical Protocol (LMP)</strong> is a stateful, Space-Separated Value (SSV) grid format designed to act as the perfect intermediary language between AI models and binary MIDI data.</p>
-    <p>Unlike traditional music notation or standard MIDI files—which are illegible or mathematically confusing to modern Byte-Pair Encoding (BPE) tokenizers—LMP is built from the ground up for <strong>bidirectional LLM interaction</strong>. It allows AI models to "read" existing MIDI files, understand their musical context, and "write" new, mathematically precise compositions without context window bloat.</p>
+    <h2>🎵 What is LMP v2.0?</h2>
+    <p>The <strong>Lean Musical Protocol (LMP)</strong> is a stateful, Space-Separated Value (SSV) grid format designed as the ideal bridge between AI models and binary MIDI data.</p>
+    <p>Unlike verbose JSON (which exhausts context windows) or primitive sheet-music notations like ABC (which cannot express modern multitrack DAW production), LMP is built from the ground up for <strong>bidirectional LLM interaction</strong>: AI models can read, analyze, and write mathematically precise compositions with minimal token overhead.</p>
 
-    <h2>The Bidirectional Pipeline</h2>
-    <ol>
-      <li><strong>MIDI → LMP → AI:</strong> An LMP parser converts binary .mid files into compressed LMP text. LLMs can read, analyze, and understand melodies, rhythms, or multitrack arrangements using minimal tokens.</li>
-      <li><strong>AI → LMP → MIDI:</strong> The LLM generates or modifies music by writing LMP syntax. The parser compiles this deterministic text into a standard, playable .mid file.</li>
-    </ol>
+    <div class="card-box">
+      <h3 style="margin-top:0;font-size:1.05rem;color:#f8fafc">The Bidirectional Pipeline</h3>
+      <ol style="margin-bottom:0">
+        <li><strong>MIDI ➔ LMP ➔ AI (Contextual Analysis):</strong> An LMP decompiler converts binary <code>.mid</code> files into compressed LMP text. LLMs analyze multitrack arrangements, chord progressions, and rhythms using ~75% fewer tokens than raw representations.</li>
+        <li><strong>AI ➔ LMP ➔ MIDI (Generative Output):</strong> The LLM writes LMP syntax. The zero-sandbox compiler deterministically transforms this text into standard binary MIDI in milliseconds.</li>
+      </ol>
+    </div>
 
-    <h2>Why LMP?</h2>
-    <p>When tasking LLMs with music generation or analysis, standard data formats fail:</p>
+    <h2>📊 LMP-Bench: Empirical Evaluation</h2>
+    <p>LMP v2.0 was benchmarked across 7 musical genres against standard symbolic music formats:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Genre / Composition</th>
+          <th>LMP Tokens</th>
+          <th>MIDI-JSON Tokens</th>
+          <th>Token Compression (TCR)</th>
+          <th>Note F1 Fidelity</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Pop Progression &amp; Vocal Lead</td><td>248</td><td>1,229</td><td><strong>4.96x</strong></td><td>100.0%</td></tr>
+        <tr><td>EDM Four-on-the-Floor with Bass</td><td>315</td><td>2,187</td><td><strong>6.94x</strong></td><td>100.0%</td></tr>
+        <tr><td>Bach Two-Part Counterpoint</td><td>277</td><td>1,103</td><td><strong>3.98x</strong></td><td>100.0%</td></tr>
+        <tr><td>Jazz Blues Swing &amp; Syncopation</td><td>271</td><td>1,615</td><td><strong>5.96x</strong></td><td>100.0%</td></tr>
+        <tr><td>Indian Classical Tabla (Teental)</td><td>210</td><td>402</td><td><strong>1.91x</strong></td><td>100.0%</td></tr>
+        <tr><td>Polyrhythmic Metal (7/8 Meter)</td><td>249</td><td>727</td><td><strong>2.92x</strong></td><td>100.0%</td></tr>
+        <tr><td>Ambient Soundscape with CC Modulation</td><td>203</td><td>320</td><td><strong>1.58x</strong></td><td>100.0%</td></tr>
+        <tr style="font-weight:600;background:rgba(245,158,11,0.12)">
+          <td>Aggregate Corpus Average</td><td>253</td><td>1,083</td><td>4.04x (saves ~75%)</td><td>100.0%</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>🚀 What's New in v2.0</h2>
     <ul>
-      <li><strong>JSON/XML:</strong> Massive token bloat from structural repetition.</li>
-      <li><strong>CSV:</strong> Commas disrupt BPE tokenization and degrade mathematical reasoning.</li>
-      <li><strong>Standard MIDI (Delta-Time):</strong> LLMs struggle with cumulative arithmetic, causing rhythmic drift.</li>
-    </ul>
-    <p><strong>The LMP Solution:</strong></p>
-    <ul>
-      <li><strong>BPE-Optimized Whitespace:</strong> SSV grid compresses contiguous whitespace.</li>
-      <li><strong>Absolute Floating-Point Grid:</strong> Beat placements (e.g. 1.0, 2.5) eliminate delta-time arithmetic errors.</li>
-      <li><strong>Stateful DRY Architecture:</strong> Cascading fallbacks and track defaults reduce redundancy.</li>
+      <li><strong>Tokenizer-Native "Postel's Law" Parsing:</strong> Tolerates natural spaces in chords (e.g. <code>1.0 C4, E4, G4</code>), strips markdown code fences, and heals continuation lines without syntax crashes.</li>
+      <li><strong>Deterministic Seeded PRNG Humanization:</strong> <code>@SEED &lt;int&gt;</code> paired with <code>@RULE VEL=min-max</code> guarantees 100% bit-for-bit identical MIDI compilation while adding natural velocity groove.</li>
+      <li><strong>Official MCP Server (<code>@lmp-midi/mcp</code>):</strong> Native Model Context Protocol support for Claude Desktop, Cursor, Gemini, and autonomous agent loops (<code>compile_lmp</code>, <code>decompile_midi</code>, <code>validate_lmp</code>).</li>
+      <li><strong>Lossless Bidirectional Decompiler:</strong> High-precision conversion from <code>.mid</code> back to clean LMP, preserving multi-line polyphony (<code>+</code>) and conductor tracks.</li>
+      <li><strong>Next-Gen Web Studio:</strong> In-browser procedural WebAudio synthesis, multi-track mixer, live syntax linter, and AI Musical Friend copilot.</li>
     </ul>
 
-    <h2>Use Cases</h2>
-    <ul>
-      <li><strong>Autonomous Agent Workflows:</strong> Analyze audio/MIDI, rewrite arrangements, output new files.</li>
-      <li><strong>Algorithmic Composition:</strong> Rapidly prototype multi-track sequences, legato, or custom drum maps (e.g. Tabla bols).</li>
-      <li><strong>Dataset Generation:</strong> Compress MIDI libraries into efficient LMP text for fine-tuning LLMs.</li>
-    </ul>
+    <h2>🤖 Give LMP to an AI (Instant Prompt Links)</h2>
+    <p>You can give an AI assistant (ChatGPT, Claude, Gemini, Cursor) the LMP specification instantly by copying the Jina Reader link below:</p>
 
-    <h2>Gemini + LMP: one-click MIDI download</h2>
-    <p>If you use <strong>Google Gemini</strong> to generate LMP, a Tampermonkey script adds a small panel on Gemini with “Check clipboard” and “Download MIDI.” Paste LMP (or copy from a response), then click to compile and download a .mid file. No copy-paste into other tools.</p>
-    <p><strong>Install:</strong> Install the <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> browser extension, then open this link — Tampermonkey will prompt you to add the script:</p>
-    <p><a href="https://github.com/zunaidFarouque/LMP-Specification/raw/main/tampermonkey/gemini-lmp-download.user.js" style="padding:0.5rem 1rem;background:var(--accent);color:#1e293b;text-decoration:none;border-radius:8px;font-weight:600;display:inline-block">Install Gemini LMP → MIDI script</a></p>
-    <p>Script source and details: <a href="https://github.com/zunaidFarouque/LMP-Specification/tree/main/tampermonkey">tampermonkey/</a> in the repo.</p>
+    <div class="card-box">
+      <div style="font-weight:600;color:var(--accent);margin-bottom:0.4rem">⭐ Master All-in-One AI Spec (Recommended)</div>
+      <p style="font-size:0.92rem;color:var(--muted);margin-bottom:0.5rem">Full multitrack composition rules with chords, basslines, melodies, drums, and syntax rules:</p>
+      <div class="prompt-box">https://r.jina.ai/https://raw.githubusercontent.com/zunaidFarouque/LMP-Specification/main/specs/ai/LMP-AI-FULL.md</div>
+      
+      <div style="font-weight:600;color:#f8fafc;margin-top:1rem;margin-bottom:0.3rem">Example Prompt:</div>
+      <div class="prompt-box">Please read the LMP specification at https://r.jina.ai/https://raw.githubusercontent.com/zunaidFarouque/LMP-Specification/main/specs/ai/LMP-AI-FULL.md and compose a syncopated 4-bar Neo-Soul chord progression and bassline in LMP syntax.</div>
+    </div>
+
+    <h2>🔌 Gemini + LMP: One-Click MIDI Download</h2>
+    <p>If you use <strong>Google Gemini</strong>, a Tampermonkey script adds an integrated panel with “Check clipboard” and “Download MIDI” to compile and download <code>.mid</code> files directly in the chat window.</p>
+    <p>
+      <a href="https://github.com/zunaidFarouque/LMP-Specification/raw/main/tampermonkey/gemini-lmp-download.user.js" style="padding:0.5rem 1rem;background:var(--accent);color:#1e293b;text-decoration:none;border-radius:8px;font-weight:600;display:inline-block">Install Gemini LMP → MIDI Userscript</a>
+    </p>
 
     <nav class="nav">
-      <a href="/LMP-Specification/specification/" class="primary">Read the Specification</a>
-      <a href="/LMP-Specification/studio/">Try Web Studio</a>
+      <a href="/LMP-Specification/studio/" class="primary">Launch Web Studio</a>
+      <a href="/LMP-Specification/specification/">Read the Specification</a>
+      <a href="/LMP-Specification/llm/">Browse LLM Guides</a>
+      <a href="/LMP-Specification/release-notes/">View v2 Release Notes</a>
       <a href="/LMP-Specification/api.html">Compile LMP ↔ MIDI</a>
     </nav>
 
-    <footer>Built for the future of AI-driven music production.</footer>
+    <footer>
+      <div>Lean Musical Protocol (LMP) &mdash; Built for the future of AI music generation.</div>
+      <div>
+        <a href="https://github.com/zunaidFarouque/LMP-Specification">GitHub Repository</a> &bull;
+        <a href="/LMP-Specification/llms.txt">llms.txt</a>
+      </div>
+    </footer>
   </div>
 </body>
 </html>

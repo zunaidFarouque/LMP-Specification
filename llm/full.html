@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMP AI: Master All-in-One Spec — LMP</title>
+  <link rel="icon" type="image/svg+xml" href="/LMP-Specification/studio/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0f1419;--fg:#e2e8f0;--muted:#94a3b8;--accent:#f59e0b;--card:#1e293b;--border:#334155}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--fg);line-height:1.6;min-height:100vh;padding:2rem 1.5rem}
+    .container{max-width:820px;margin:0 auto}
+    h1{font-size:1.85rem;margin:0 0 1rem;color:#f8fafc}
+    h2{font-size:1.35rem;margin:2rem 0 0.75rem;color:var(--accent)}
+    h3{font-size:1.15rem;margin:1.5rem 0 0.5rem;color:#f1f5f9}
+    p{margin:0 0 1rem}
+    ul,ol{margin:0 0 1rem;padding-left:1.5rem}
+    li{margin-bottom:0.35rem}
+    pre,code{font-family:'JetBrains Mono',monospace;font-size:0.9em;background:var(--card);padding:0.2em 0.4em;border-radius:4px}
+    pre{margin:1rem 0;padding:1rem;overflow-x:auto;border:1px solid var(--border)}
+    pre code{padding:0;background:transparent}
+    table{border-collapse:collapse;width:100%;margin:1.5rem 0;font-size:0.95rem}
+    th,td{border:1px solid var(--border);padding:0.6rem 0.85rem;text-align:left}
+    th{background:var(--card);color:var(--accent);font-weight:600}
+    tr:nth-child(even){background:rgba(30,41,59,0.35)}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    blockquote{margin:1rem 0;padding:0.75rem 1rem;border-left:4px solid var(--accent);background:rgba(245,158,11,0.08);border-radius:0 6px 6px 0}
+  </style>
+</head>
+<body>
+  <div class="container">
+    
+<nav style="margin-bottom:2rem;display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
+  <a href="/LMP-Specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Home</a>
+  <a href="/LMP-Specification/specification/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Specification</a>
+  <a href="/LMP-Specification/llm/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">LLM Guides</a>
+  <a href="/LMP-Specification/release-notes/" style="padding:0.5rem 1rem;background:#1e293b;color:#e2e8f0;text-decoration:none;border-radius:8px">Release Notes (v2)</a>
+  <a href="/LMP-Specification/studio/" style="padding:0.5rem 1rem;background:#f59e0b;color:#1e293b;text-decoration:none;border-radius:8px;font-weight:600">Studio</a>
+</nav>
+    <div class="content"><h1>LMP — Lean Musical Protocol (AI Teaching: Master Specification)</h1>
+<h2>1. Adapter Preamble</h2>
+<p>You retain your full identity, expertise, and creative musical voice. This document teaches you a specialized output format: <strong>LMP (Lean Musical Protocol)</strong>. Use it whenever you compose, sequence, edit, or output MIDI music.</p>
+<p>Musical decisions (harmony, melody, counterpoint, rhythm, groove, dynamics, phrasing) stay entirely in your domain. LMP syntax (how to encode musical ideas into deterministic, token-efficient text) is the taught capability.</p>
+<h2>2. Output Context</h2>
+<p>LMP is a clean, whitespace-delimited text format that compiles directly to binary Standard MIDI.</p>
+<ul>
+<li><strong>Rule 1:</strong> Wrap all generated LMP code inside a markdown code block: <code>lmp ... </code></li>
+<li><strong>Rule 2:</strong> Output valid LMP syntax only within the code block. Do not mix conversational prose into the code block.</li>
+</ul>
+<hr>
+<h2>3. Musical Concept → LMP Quick Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Musical Concept</th>
+<th>LMP Syntax</th>
+<th>Notes / Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Downbeat / Measure</strong></td>
+<td><code>1.0</code>, <code>2.0</code>, <code>3.0</code>...</td>
+<td>Absolute quarter-note grid. 4/4 bar = 4 beats (<code>1.0</code> to <code>5.0</code>).</td>
+</tr>
+<tr>
+<td><strong>Single Note</strong></td>
+<td><code>1.0 C4</code></td>
+<td>Note at beat 1.0 (defaults apply for velocity/duration).</td>
+</tr>
+<tr>
+<td><strong>Single Note (Full)</strong></td>
+<td><code>1.0 C4 95 1.0</code></td>
+<td><code>[Beat] [Pitch] [Velocity] [Length]</code>.</td>
+</tr>
+<tr>
+<td><strong>Chord (Polyphony)</strong></td>
+<td><code>1.0 C4,E4,G4 80 2.0</code></td>
+<td>Comma-separated. <strong>STRICTLY NO SPACES</strong> after commas!</td>
+</tr>
+<tr>
+<td><strong>Omit Velocity, Set Length</strong></td>
+<td><code>1.0 C4 _ 2.0</code></td>
+<td><strong>MUST use <code>_</code> in Column 3</strong> to avoid reading duration as velocity.</td>
+</tr>
+<tr>
+<td><strong>Voice Leading / Same Beat</strong></td>
+<td><code>+ E4,G4 _ 2.0</code></td>
+<td><code>+</code> inherits the beat timestamp from the line immediately above.</td>
+</tr>
+<tr>
+<td><strong>Monophonic Legato</strong></td>
+<td><code>@RULE LEGATO=TRUE</code></td>
+<td>Omit duration; automatically calculates duration to next note.</td>
+</tr>
+<tr>
+<td><strong>Rest / Silence</strong></td>
+<td><code>3.0 R</code></td>
+<td>Explicit silence marker (useful in legato or solo passages).</td>
+</tr>
+<tr>
+<td><strong>Pitch Bend</strong></td>
+<td><code>2.5 PB 1.0</code></td>
+<td>Bend in semitones (<code>+1.0</code> up, <code>-1.0</code> down, <code>0.0</code> center reset).</td>
+</tr>
+<tr>
+<td><strong>Sustain Pedal</strong></td>
+<td><code>1.0 CC 64 127</code></td>
+<td>Standard MIDI CC (<code>64</code> = sustain, <code>127</code> = down, <code>0</code> = release).</td>
+</tr>
+<tr>
+<td><strong>Expression / Swell</strong></td>
+<td><code>1.0 CC 11 90</code></td>
+<td>CC 11 expression dynamics.</td>
+</tr>
+<tr>
+<td><strong>Kick Drum (Ch 10)</strong></td>
+<td><code>1.0 36 110</code></td>
+<td>GM 36 = Bass Drum.</td>
+</tr>
+<tr>
+<td><strong>Snare Drum (Ch 10)</strong></td>
+<td><code>2.0 38 105</code></td>
+<td>GM 38 = Acoustic Snare.</td>
+</tr>
+<tr>
+<td><strong>Repeating Grid (Hi-Hats)</strong></td>
+<td><code>1.0-5.0:1/2 42</code></td>
+<td>8th notes from beat 1.0 up to (exclusive) 5.0 (fills 4-beat bar).</td>
+</tr>
+<tr>
+<td><strong>Skip Loop Beats</strong></td>
+<td><code>| R 2.0 4.0</code></td>
+<td>Place on line directly under a repeating loop.</td>
+</tr>
+<tr>
+<td><strong>Accent Loop Beats</strong></td>
+<td><code>| V [1.0 3.0] 115</code></td>
+<td>Accent specific beats in the loop.</td>
+</tr>
+<tr>
+<td><strong>Custom Instrument Name</strong></td>
+<td><code>@MAP kick=36</code></td>
+<td>Define alias, then use <code>1.0 kick 110 0.25</code>.</td>
+</tr>
+<tr>
+<td><strong>Humanize Velocity</strong></td>
+<td><code>@RULE 42 VEL=75-90</code></td>
+<td>Randomizes velocity within range when omitted on that pitch.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>4. Lexical &amp; Structural Rules</h2>
+<ol>
+<li><strong>Columns are Space-Delimited:</strong> Use one or more spaces or tabs between columns.</li>
+<li><strong>Event Row Format:</strong><pre><code class="language-text">[Beat] [Pitch/Token] [Velocity] [Length]
+</code></pre>
+<ul>
+<li><strong>Column 1 — Beat:</strong> Absolute position (<code>1.0</code>, <code>2.5</code>, <code>3.25</code>). 1 beat = 1 quarter note. Max 3 decimal places.</li>
+<li><strong>Column 2 — Pitch:</strong> Note (Scientific Pitch Notation like <code>C4</code>, <code>F#3</code>), GM percussion integer (<code>36</code>, <code>38</code>), custom <code>@MAP</code> name (<code>kick</code>), or reserved token (<code>R</code>, <code>CC</code>, <code>PB</code>, <code>TEMPO</code>, <code>TS</code>).</li>
+<li><strong>Column 3 — Velocity:</strong> Integer <code>1–127</code>. Optional.</li>
+<li><strong>Column 4 — Length:</strong> Duration in beats (e.g., <code>1.0</code> = quarter note, <code>0.5</code> = eighth note). Optional.</li>
+</ul>
+</li>
+<li><strong>CRITICAL Column 3 <code>_</code> Placeholder Rule:</strong>
+Column 3 is ALWAYS Velocity; Column 4 is ALWAYS Duration.
+If you omit velocity while specifying duration, you <strong>MUST</strong> put <code>_</code> in Column 3:<ul>
+<li>✅ Correct: <code>1.0 C4 _ 2.0</code> (plays C4 at default velocity for 2.0 beats)</li>
+<li>❌ FORBIDDEN: <code>1.0 C4 2.0</code> (this erroneously interprets <code>2.0</code> as velocity 2, producing an inaudible note!)</li>
+</ul>
+</li>
+<li><strong>CRITICAL Negative Constraint — No Spaces in Chords:</strong>
+In Column 2 chords, <strong>NEVER</strong> insert spaces after commas.<ul>
+<li>✅ Correct: <code>1.0 C4,E4,G4 80 1.0</code></li>
+<li>❌ FORBIDDEN: <code>1.0 C4, E4, G4 80 1.0</code> (spaces break column parsing!)</li>
+</ul>
+</li>
+<li><strong>Comments:</strong> Use <code>//</code> anywhere. Everything after <code>//</code> on the line is ignored.</li>
+<li><strong>Trailing Prose / Blank Lines:</strong> Empty lines or non-LMP lines enter trailing mode until valid <code>@</code> headers or event rows resume.</li>
+</ol>
+<hr>
+<h2>5. Headers Reference</h2>
+<p>Declare track headers before event rows. Each track <strong>must</strong> declare <code>@TRACK</code> and <code>@CHANNEL</code>.</p>
+<pre><code class="language-lmp">@LMP 2.0                      // Protocol version
+@BPM 120                      // Tempo in beats per minute
+@TIMESIG 4/4                  // Time signature (4/4, 3/4, 7/8, etc.)
+@ORIGIN 1                     // 1 = downbeat at 1.0 (default), 0 = 0-based DAWs
+@SEED 42                      // Deterministic seed for @RULE VEL humanization
+
+@TRACK 1 Piano_Lead           // Track ID and Name (alphanumeric &amp; underscores)
+@CHANNEL 1                    // MIDI channel (1-16; use 10 for drums). Note: Does not persist across tracks!
+@PROGRAM 0                    // General MIDI patch number (0 = Acoustic Grand Piano)
+@DEFAULT_VEL 85               // Fallback velocity when omitted in rows
+@DEFAULT_DUR 1.0              // Fallback duration when omitted in rows
+@PBRANGE 2                    // Pitch bend sensitivity range in semitones (default 2)
+</code></pre>
+<hr>
+<h2>6. Melodic &amp; Harmonic Sequencing</h2>
+<h3>6.1 Scientific Pitch Notation (SPN)</h3>
+<ul>
+<li><code>C4</code> = MIDI note 60 (Middle C).</li>
+<li>Sharps (<code>F#3</code>, <code>G#4</code>) or flats (<code>Bb3</code>, <code>Eb4</code>) are fully supported.</li>
+</ul>
+<h3>6.2 Voice Leading with <code>+</code> (Same Beat Continuation)</h3>
+<p>To layer independent voices on the exact same beat without repeating the timestamp:</p>
+<pre><code class="language-lmp">1.0 C3 _ 4.0                  // Bass note held for full 4-beat bar
++ E4,G4,B4 75 2.0             // Pad chord at beat 1.0 held for 2 beats
+3.0 D4,F#4,A4 80 2.0          // Second pad chord at beat 3.0
+</code></pre>
+<h3>6.3 Monophonic Legato Phrases</h3>
+<p>Add <code>@RULE LEGATO=TRUE</code> on solo tracks. Duration automatically connects to the next note.</p>
+<pre><code class="language-lmp">@TRACK 2 Flute_Solo
+@CHANNEL 2
+@PROGRAM 73
+@RULE LEGATO=TRUE
+@DEFAULT_VEL 88
+
+1.0 E4                        // Connected to 1.5
+1.5 G4                        // Connected to 2.0
+2.0 A4                        // Connected to 3.0
+3.0 B4 _ 1.5                  // Final note of phrase: provide explicit length in Col 4!
+4.5 R                         // Rest
+</code></pre>
+<h3>6.4 Pitch Bend &amp; CC Automation</h3>
+<ul>
+<li><strong>Pitch Bend (<code>PB</code>):</strong> <code>[Beat] PB [semitones]</code>. e.g., <code>2.5 PB 1.0</code> bends up 1 semitone; <code>3.0 PB 0.0</code> centers.</li>
+<li><strong>Continuous Controllers (<code>CC</code>):</strong> <code>[Beat] CC [controller#] [value]</code>.<ul>
+<li>Sustain pedal: <code>1.0 CC 64 127</code> (down), <code>4.5 CC 64 0</code> (release).</li>
+<li>Expression dynamics: <code>1.0 CC 11 60</code>, <code>2.0 CC 11 90</code>, <code>3.0 CC 11 115</code>.</li>
+</ul>
+</li>
+<li><strong>Order on same beat:</strong> Output <code>CC</code> first, then <code>PB</code>, then notes.</li>
+</ul>
+<hr>
+<h2>7. Percussion &amp; Drum Sequencing (Channel 10)</h2>
+<p>Always set <code>@CHANNEL 10</code> for standard General MIDI percussion.</p>
+<h3>7.1 Standard General MIDI Percussion Map</h3>
+<table>
+<thead>
+<tr>
+<th>Note #</th>
+<th>Instrument Name</th>
+<th>Common @MAP Alias</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>36</strong></td>
+<td>Bass Drum 1 (Kick)</td>
+<td><code>@MAP kick=36</code></td>
+</tr>
+<tr>
+<td><strong>38</strong></td>
+<td>Acoustic Snare</td>
+<td><code>@MAP snare=38</code></td>
+</tr>
+<tr>
+<td><strong>40</strong></td>
+<td>Electric Snare</td>
+<td><code>@MAP esnare=40</code></td>
+</tr>
+<tr>
+<td><strong>42</strong></td>
+<td>Closed Hi-Hat</td>
+<td><code>@MAP hat=42</code></td>
+</tr>
+<tr>
+<td><strong>44</strong></td>
+<td>Pedal Hi-Hat</td>
+<td><code>@MAP pedalhat=44</code></td>
+</tr>
+<tr>
+<td><strong>46</strong></td>
+<td>Open Hi-Hat</td>
+<td><code>@MAP openhat=46</code></td>
+</tr>
+<tr>
+<td><strong>49</strong></td>
+<td>Crash Cymbal 1</td>
+<td><code>@MAP crash=49</code></td>
+</tr>
+<tr>
+<td><strong>51</strong></td>
+<td>Ride Cymbal 1</td>
+<td><code>@MAP ride=51</code></td>
+</tr>
+<tr>
+<td><strong>53</strong></td>
+<td>Ride Bell</td>
+<td><code>@MAP ridebell=53</code></td>
+</tr>
+<tr>
+<td><strong>41 / 45 / 48</strong></td>
+<td>Low / Mid / High Toms</td>
+<td><code>@MAP lowtom=41</code></td>
+</tr>
+</tbody></table>
+<h3>7.2 Repeating Loops &amp; Modifiers</h3>
+<p>Generate fast patterns (hi-hats, shakers) using range syntax:
+<code>[StartBeat]-[EndBeat]:[interval] [Pitch]</code></p>
+<ul>
+<li><strong>Interval format:</strong> MUST be a fraction (<code>1/2</code>, <code>1/4</code>, <code>1/8</code>, <code>1/16</code>, <code>1/3</code>) or integer. <strong>NEVER use decimals like <code>:0.5</code></strong>.</li>
+<li><strong>Loop EndBeat is EXCLUSIVE:</strong> To fill a 4-beat bar (beats 1.0 through 4.0), use <code>1.0-5.0:1/2</code>.</li>
+<li><strong>Modifiers (<code>|</code>):</strong> Place modifier lines immediately below the loop line:<ul>
+<li><code>| R [beats...]</code> — Skip/rest on specific beats.</li>
+<li><code>| V [beats...] [velocity]</code> — Accent specific beats.</li>
+<li><code>| D [beats...] [duration]</code> — Override duration on specific beats.</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-lmp">// 16th-note hi-hat roll across 1 bar with accents and open hats
+1.0-5.0:1/4 42
+| R 2.5 4.5                   // Skip closed hat where open hat plays
+| V [1.0 2.0 3.0 4.0] 110     // Accent on quarter-note downbeats
+
+2.5 46 95 0.5                 // Open hat hit on the &quot;and&quot; of 2
+4.5 46 95 0.5                 // Open hat hit on the &quot;and&quot; of 4
+</code></pre>
+<hr>
+<h2>8. Odd Meters &amp; Mathematical Alignment</h2>
+<p>In LMP, <strong>1 beat ALWAYS equals 1 quarter note</strong>.</p>
+<ul>
+<li>In <strong>4/4</strong>: 1 measure = 4.0 beats. (Bar 1: <code>1.0–5.0</code>, Bar 2: <code>5.0–9.0</code>).</li>
+<li>In <strong>3/4</strong>: 1 measure = 3.0 beats. (Bar 1: <code>1.0–4.0</code>, Bar 2: <code>4.0–7.0</code>).</li>
+<li>In <strong>6/8</strong>: 1 measure = 6 eighth notes = 3.0 quarter-note beats.</li>
+<li>In <strong>7/8</strong>: 1 measure = 7 eighth notes = 3.5 quarter-note beats.<ul>
+<li>Bar 1: <code>1.0</code> to <code>4.5</code></li>
+<li>Bar 2: <code>4.5</code> to <code>8.0</code></li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>9. Comprehensive Multi-Track Example</h2>
+<p>Here is a complete, production-ready 2-bar Funk arrangement demonstrating melodic chords, bassline, and drum groove:</p>
+<pre><code class="language-lmp">@LMP 2.0
+@BPM 116
+@TIMESIG 4/4
+@ORIGIN 1
+@SEED 101
+
+// -------------------------------------------------------------
+// TRACK 1: Electric Piano (Chords &amp; Groove)
+// -------------------------------------------------------------
+@TRACK 1 Rhodes_Piano
+@CHANNEL 1
+@PROGRAM 4
+@DEFAULT_VEL 80
+@DEFAULT_DUR 0.75
+
+// Measure 1: Dm9 to G13 syncopated hits
+1.0 D4,F4,A4,C5 90 1.0
+2.5 D4,F4,A4,C5 75 0.5
+3.0 G3,F4,B4,E5 85 1.0
+4.5 G3,F4,B4,E5 70 0.5
+
+// Measure 2: Em7 to A7alt
+5.0 E4,G4,B4,D5 90 1.0
+6.5 E4,G4,B4,D5 75 0.5
+7.0 A3,G4,C#5,F5 85 1.0
+8.5 A3,G4,C#5,F5 70 0.5
+
+// -------------------------------------------------------------
+// TRACK 2: Electric Slap Bass (Monophonic Legato)
+// -------------------------------------------------------------
+@TRACK 2 Slap_Bass
+@CHANNEL 2
+@PROGRAM 36
+@DEFAULT_VEL 95
+@RULE LEGATO=TRUE
+
+// Measure 1
+1.0 D2
+1.75 D2 70
+2.0 D3 110
+2.5 F2 85
+3.0 G2 105
+3.75 G#2 80
+4.0 A2 110
+4.5 C3 _ 0.5
+
+// Measure 2
+5.0 E2 100
+5.75 E2 70
+6.0 E3 110
+6.5 G2 85
+7.0 A2 105
+7.75 Bb2 80
+8.0 B2 110
+8.5 D3 _ 0.5
+
+// -------------------------------------------------------------
+// TRACK 3: Tight Funk Drums
+// -------------------------------------------------------------
+@TRACK 3 Funk_Kit
+@CHANNEL 10
+@DEFAULT_DUR 0.25
+@DEFAULT_VEL 100
+@RULE 42 VEL=70-85            // Humanize hi-hat velocity
+
+// Hi-Hat 8th-note groove across 2 bars (beats 1.0 to 9.0)
+1.0-9.0:1/2 42
+| V [1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0] 105
+
+// Measure 1: Kick &amp; Snare
+1.0 36 115                    // Kick on 1
+1.75 36 90                    // Ghost kick
+2.0 38 115                    // Snare on 2
+2.75 38 45                    // Ghost snare
+3.0 36 110                    // Kick on 3
+3.5 36 95                     // Syncopated kick on 3-and
+4.0 38 115                    // Snare on 4
+
+// Measure 2: Kick &amp; Snare variation
+5.0 36 120                    // Sam downbeat kick
+5.5 36 90
+6.0 38 115                    // Snare on 2
+6.75 38 45                    // Ghost snare
+7.0 36 110                    // Kick on 3
+7.75 36 100
+8.0 38 120                    // Snare on 4
+8.75 38 60                    // Ghost snare pickup
+</code></pre>
+<hr>
+<h2>10. AI Generation Checklist</h2>
+<p>Before emitting LMP output, run through this mental checklist:</p>
+<ul>
+<li><input disabled="" type="checkbox"> Wrapped inside a single <code>```lmp</code> code fence.</li>
+<li><input disabled="" type="checkbox"> Header includes <code>@LMP 2.0</code>, <code>@BPM</code>, and <code>@TIMESIG</code>.</li>
+<li><input disabled="" type="checkbox"> Every track defines both <code>@TRACK [id] [Name]</code> and <code>@CHANNEL [1-16]</code> (Channel 10 for drums).</li>
+<li><input disabled="" type="checkbox"> Beats are absolute numbers (<code>1.0</code> is downbeat in 4/4; measure 2 starts at <code>5.0</code>).</li>
+<li><input disabled="" type="checkbox"> <strong>NO SPACES inside chords:</strong> Written as <code>C4,E4,G4</code>, never <code>C4, E4, G4</code>.</li>
+<li><input disabled="" type="checkbox"> <strong>Column 3 placeholder:</strong> If omitting velocity while specifying duration, wrote <code>1.0 C4 _ 2.0</code> (never <code>1.0 C4 2.0</code>).</li>
+<li><input disabled="" type="checkbox"> Repeating loop interval is a fraction (<code>:1/2</code>, <code>:1/4</code>, <code>:1/8</code>), never a decimal (<code>:0.5</code> is invalid).</li>
+<li><input disabled="" type="checkbox"> Repeating loop EndBeat is exclusive (<code>1.0-5.0:1/2</code> fills a 4-beat bar).</li>
+<li><input disabled="" type="checkbox"> Final note of a <code>@RULE LEGATO=TRUE</code> track has an explicit duration in Column 4.</li>
+<li><input disabled="" type="checkbox"> Output clean, executable LMP syntax with no extraneous conversational text inside the code block.</li>
+</ul>
+</div>
+  </div>
+</body>
+</html>
