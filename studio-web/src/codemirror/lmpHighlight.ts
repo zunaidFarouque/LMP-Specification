@@ -1,6 +1,6 @@
 import { HighlightStyle } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
-import { EditorView } from 'codemirror';
+import { EditorView } from '@codemirror/view';
 
 export const lmpEditorTheme = EditorView.theme(
   {

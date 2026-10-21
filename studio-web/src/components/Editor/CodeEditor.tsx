@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { EditorView, basicSetup } from 'codemirror';
+import { basicSetup } from 'codemirror';
 import { syntaxHighlighting } from '@codemirror/language';
 import { StateEffect, StateField } from '@codemirror/state';
-import { Decoration, type DecorationSet } from '@codemirror/view';
+import { EditorView, Decoration, type DecorationSet } from '@codemirror/view';
 import { linter, lintGutter } from '@codemirror/lint';
 import { lmpLanguage, lmpHighlight, lmpEditorTheme } from '../../codemirror';
 import { lintLmpDocument } from '../../core/linter';
