@@ -5,6 +5,7 @@ import { TrackMixer } from './components/Arranger/TrackMixer';
 import { PianoRoll } from './components/PianoRoll/PianoRoll';
 import { CodeEditor } from './components/Editor/CodeEditor';
 import { AiMusicalFriend } from './components/AiCopilot/AiMusicalFriend';
+import { SoundFontManagerModal } from './components/SoundFontManager/SoundFontManagerModal';
 import { DockableWorkspace } from './components/Layout/DockableWorkspace';
 import { studioAudioEngine } from './core/audioEngine';
 import {
@@ -81,6 +82,18 @@ export function App() {
   const [scrollLock, setScrollLock] = useState<boolean>(true); // Selection-only focus
   const [isAiFriendOpen, setIsAiFriendOpen] = useState<boolean>(false);
   const [ghostNotes, setGhostNotes] = useState<StudioNote[]>([]);
+  const [isSoundFontManagerOpen, setIsSoundFontManagerOpen] = useState<boolean>(false);
+  const [sfManagerTab, setSfManagerTab] = useState<'soundfonts' | 'bindings' | 'specs'>('soundfonts');
+  const [selectedSpecForManager, setSelectedSpecForManager] = useState<string | null>(null);
+
+  const handleOpenSoundFontManager = (
+    tab: 'soundfonts' | 'bindings' | 'specs' = 'soundfonts',
+    specId?: string
+  ) => {
+    setSfManagerTab(tab);
+    setSelectedSpecForManager(specId || null);
+    setIsSoundFontManagerOpen(true);
+  };
 
   const [midiBytes, setMidiBytes] = useState<Uint8Array | null>(null);
   const [compileStatus, setCompileStatus] = useState<string>('');
@@ -300,6 +313,7 @@ export function App() {
       program: updates.program,
       volume: updates.volume,
       pan: updates.pan,
+      soundfont: updates.soundfont,
     });
     if (updatedCode !== lmpText) {
       setLmpText(updatedCode);
@@ -373,6 +387,7 @@ export function App() {
         scrollLock={scrollLock}
         onToggleScrollLock={() => setScrollLock(!scrollLock)}
         onOpenAiFriend={() => setIsAiFriendOpen(true)}
+        onOpenSoundFontManager={() => handleOpenSoundFontManager('soundfonts')}
         onDownloadMidi={handleDownloadMidi}
         canDownload={!!midiBytes && midiBytes.length > 0}
       />
@@ -436,6 +451,8 @@ export function App() {
         isOpen={isAiFriendOpen}
         onClose={() => setIsAiFriendOpen(false)}
         currentLmp={lmpText}
+        tracks={tracks}
+        activeTrackId={activeTrackId}
         onApplyVariation={(code) => {
           setLmpText(code);
           compileDocument(code);
@@ -451,6 +468,13 @@ export function App() {
         onHoverVariation={(notes) => {
           setGhostNotes(notes || []);
         }}
+      />
+      {/* 4. SoundFont & Instrument Specification Manager Modal */}
+      <SoundFontManagerModal
+        isOpen={isSoundFontManagerOpen}
+        onClose={() => setIsSoundFontManagerOpen(false)}
+        initialTab={sfManagerTab}
+        selectedSpecIdForView={selectedSpecForManager}
       />
     </div>
   );

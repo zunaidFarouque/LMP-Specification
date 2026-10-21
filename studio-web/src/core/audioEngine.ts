@@ -1,4 +1,5 @@
 import type { StudioNote, StudioTrack, TransportState } from './types';
+import { soundFontEngine } from './soundfontEngine';
 
 type Listener = (state: TransportState) => void;
 
@@ -81,6 +82,9 @@ class StudioAudioEngine {
     this.transport.totalBeats = totalBeats;
     this.transport.loopStartBeat = 1.0;
     this.transport.loopEndBeat = totalBeats + 1.0;
+
+    // Initialize soundfont engine (detects local fluid percussion, stored fonts, restores user preference)
+    soundFontEngine.init();
 
     // Setup track mixer nodes
     const ctx = this.ensureContext();
@@ -238,6 +242,20 @@ class StudioAudioEngine {
     const mixer = trk ? this.trackMixers.get(trk.id) : null;
     const dest = mixer ? mixer.gain : this.masterGain!;
 
+    // Check if SoundFont should handle this note for this track
+    if (trk) {
+      const handled = soundFontEngine.playNoteForTrack(
+        ctx,
+        dest,
+        note.midiNumber,
+        note.velocity,
+        duration,
+        when,
+        trk
+      );
+      if (handled) return;
+    }
+
     const normVel = Math.max(0.1, Math.min(1.0, note.velocity / 127));
 
     if (channel === 10) {
@@ -252,10 +270,46 @@ class StudioAudioEngine {
   /**
    * Play a single test note immediately (e.g. clicking piano roll keyboard)
    */
-  public playSingleNote(midiNumber: number, velocity: number = 90, channel: number = 1, program: number = 0) {
+  public playSingleNote(
+    midiNumber: number,
+    velocity: number = 90,
+    channel: number = 1,
+    program: number = 0,
+    trackId?: number
+  ) {
     const ctx = this.ensureContext();
-    const dest = this.masterGain!;
+    const trk = trackId !== undefined ? this.tracks.find((t) => t.id === trackId) : null;
+    const mixer = trk ? this.trackMixers.get(trk.id) : null;
+    const dest = mixer ? mixer.gain : this.masterGain!;
     const normVel = Math.max(0.1, Math.min(1.0, velocity / 127));
+
+    if (trk) {
+      const handled = soundFontEngine.playNoteForTrack(
+        ctx,
+        dest,
+        midiNumber,
+        velocity,
+        0.8,
+        ctx.currentTime,
+        trk
+      );
+      if (handled) return;
+    } else if (soundFontEngine.isSoundFontActive()) {
+      const played = soundFontEngine.playNote(
+        ctx,
+        dest,
+        midiNumber,
+        velocity,
+        0.8,
+        ctx.currentTime,
+        {
+          bank: channel === 10 ? 128 : 41,
+          preset: program || 116,
+        }
+      );
+      if (played) return;
+    }
+
     if (channel === 10) {
       this.synthesizeDrum(midiNumber, normVel, ctx.currentTime, dest);
     } else {

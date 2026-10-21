@@ -245,6 +245,37 @@ export const TRACK_COLORS = [
   '#a855f7', // Purple (Track 8)
 ];
 
+export const STANDARD_TABLA_BOLS: Record<string, number> = {
+  // Tabla & General Bayan/Dayan
+  ge: 36, clsge: 37, ke: 38, ka: 38, sldge: 39, kealt: 40, sldgelong: 43, clsgeheavy: 45,
+  na: 48, ta: 48, naalt: 49, tin: 50, tun: 50, tealt: 51, te: 52, ti: 52, tu: 53, re: 54,
+  tualt: 55, tesharp: 56, thap: 57, tran: 58, tifast: 59,
+  dha: 60, ra: 61, dhin: 62, tinalt: 63, tak: 64, tranalt: 65,
+  // Dholak
+  dhum: 36, fngke: 40, ldge: 43, chhit: 52, kre: 58, tirkitadha: 64, tadhin: 65,
+  // Khol (Bengal Mridanga)
+  ghet: 36, clsghet: 37, sldghet: 39, prsd1: 41, prsd2: 42, prsd3: 43, tini: 48, sftta: 49,
+  jhi: 52, prsdtap: 56, krena: 58, dhe: 61,
+  // Mridangam (Carnatic)
+  dheem: 36, clsthoppi: 37, ki: 38, gumki: 39, ldthoppi: 43, nam: 48, kin: 48, chapu: 50,
+  araichapu: 51, tha: 52, dhom: 60, klam: 64, tarikita: 58,
+  // Pakhawaj (Dhrupad)
+  dhumma: 36, clsdhum: 37, kat: 38, slddhum: 39, opnke: 40, sftke: 42, din: 50, sur: 50,
+  tit: 52, chhapa: 57, dhetdhet: 58, katdha: 63,
+  // Kanjeera & Ghatam
+  tom: 36, dimpr: 42, me: 50, ghumki: 36, mouth: 36, belly: 38, neck: 48,
+  // Folk Auxiliary & Idiophones
+  manjeera: 69, manjeeraopen: 70, chimta: 71, chimtaring: 71, manjeera2: 80, manjeeraopen2: 81,
+  ghunghroo: 74, ghunghrooroll: 75, khartaal: 76, khartaaltrill: 77, nagara: 78, nagarabass: 78, nagaratreble: 79,
+  duff: 60, tavil: 64,
+};
+
+export const STANDARD_GM_DRUM_NAMES: Record<string, number> = {
+  kick: 36, bd: 36, snare: 38, sd: 38, rim: 37, sidestick: 37,
+  clap: 39, closedhat: 42, closed_hh: 42, ch: 42, openhat: 46, open_hh: 46, oh: 46, pedalhat: 44,
+  crash: 49, ride: 51, splash: 55, cowbell: 56, lowtom: 45, midtom: 47, hightom: 48,
+};
+
 /**
  * Creates a clean, well-spaced new track block with blank line separation.
  */
@@ -426,6 +457,11 @@ export function parseLmpDocument(
       const prg = parseInt(parts[1], 10);
       const trk = tracksMap.get(currentTrackId);
       if (trk && !isNaN(prg)) trk.program = prg;
+    } else if (stripped.startsWith('@SF2') || stripped.startsWith('@SOUNDFONT')) {
+      const parts = stripped.split(/\s+/);
+      const sf = parts.slice(1).join(' ').trim();
+      const trk = tracksMap.get(currentTrackId);
+      if (trk && sf) trk.soundfont = sf;
     } else if (stripped.startsWith('@MAP')) {
       const rest = stripped.replace(/^@MAP\s+/i, '').trim();
       const match = rest.match(/^([A-Za-z0-9_]+)\s*[:=]\s*(\d+)$/) || rest.match(/^([A-Za-z0-9_]+)\s+(\d+)$/);
@@ -565,8 +601,37 @@ export function parseLmpDocument(
         for (const p of pitches) {
           let midi = spnToMidi(p);
           const map = trackMaps.get(activeTrackId);
-          if (map && map.has(p.toLowerCase())) {
-            midi = map.get(p.toLowerCase())!;
+          const lowerP = p.toLowerCase();
+
+          if (map && map.has(lowerP)) {
+            midi = map.get(lowerP)!;
+          } else if (trk.soundfont?.includes('Fluid') || /tabla|indian|percussion/i.test(trk.name)) {
+            const bolMidi = STANDARD_TABLA_BOLS[lowerP];
+            if (bolMidi !== undefined) {
+              midi = bolMidi;
+            } else {
+              const clean = lowerP.replace(/[-_]/g, '');
+              const gmMidi = STANDARD_GM_DRUM_NAMES[lowerP] ?? STANDARD_GM_DRUM_NAMES[clean];
+              if (gmMidi !== undefined) midi = gmMidi;
+            }
+          } else if (trk.channel === 10 || /drum/i.test(trk.name)) {
+            const clean = lowerP.replace(/[-_]/g, '');
+            const gmMidi = STANDARD_GM_DRUM_NAMES[lowerP] ?? STANDARD_GM_DRUM_NAMES[clean];
+            if (gmMidi !== undefined) {
+              midi = gmMidi;
+            } else {
+              const bolMidi = STANDARD_TABLA_BOLS[lowerP];
+              if (bolMidi !== undefined) midi = bolMidi;
+            }
+          } else {
+            // General fallback: if token matches known tabla bol or drum name
+            if (STANDARD_TABLA_BOLS[lowerP] !== undefined) {
+              midi = STANDARD_TABLA_BOLS[lowerP];
+            } else {
+              const clean = lowerP.replace(/[-_]/g, '');
+              const gmMidi = STANDARD_GM_DRUM_NAMES[lowerP] ?? STANDARD_GM_DRUM_NAMES[clean];
+              if (gmMidi !== undefined) midi = gmMidi;
+            }
           }
           const noteEnd = b + duration;
           if (noteEnd > maxBeat) maxBeat = noteEnd;
@@ -1018,7 +1083,7 @@ export function deleteNote(code: string, note: StudioNote): string {
 export function patchTrackHeader(
   code: string,
   trackId: number,
-  updates: { name?: string; channel?: number; program?: number; volume?: number; pan?: number }
+  updates: { name?: string; channel?: number; program?: number; volume?: number; pan?: number; soundfont?: string | null }
 ): string {
   const lines = code.split('\n');
   const trackRange = findTrackRange(lines, trackId);
@@ -1037,6 +1102,7 @@ export function patchTrackHeader(
   // Scan the track's header section
   let channelLineIndex = -1;
   let programLineIndex = -1;
+  let sfLineIndex = -1;
   let firstEventIndex = trackRange.end;
 
   for (let i = trackHeaderIndex + 1; i < trackRange.end; i++) {
@@ -1048,6 +1114,8 @@ export function patchTrackHeader(
       channelLineIndex = i;
     } else if (trimmed.startsWith('@PROGRAM')) {
       programLineIndex = i;
+    } else if (trimmed.startsWith('@SF2') || trimmed.startsWith('@SOUNDFONT')) {
+      sfLineIndex = i;
     } else if (!trimmed.startsWith('@')) {
       // Reached events / comments
       firstEventIndex = i;
@@ -1063,6 +1131,7 @@ export function patchTrackHeader(
       const insertPos = trackHeaderIndex + 1;
       lines.splice(insertPos, 0, `@CHANNEL ${updates.channel}`);
       if (programLineIndex >= insertPos) programLineIndex++;
+      if (sfLineIndex >= insertPos) sfLineIndex++;
       if (firstEventIndex >= insertPos) firstEventIndex++;
       channelLineIndex = insertPos;
     }
@@ -1075,10 +1144,69 @@ export function patchTrackHeader(
     } else {
       const insertPos = channelLineIndex !== -1 ? channelLineIndex + 1 : trackHeaderIndex + 1;
       lines.splice(insertPos, 0, `@PROGRAM ${updates.program}`);
+      if (sfLineIndex >= insertPos) sfLineIndex++;
       if (firstEventIndex >= insertPos) firstEventIndex++;
       programLineIndex = insertPos;
     }
   }
 
+  // Update or insert @SF2
+  if (updates.soundfont !== undefined) {
+    const isCleanSf =
+      updates.soundfont &&
+      updates.soundfont !== 'default-gm' &&
+      updates.soundfont !== 'gm' &&
+      updates.soundfont.trim() !== '';
+
+    if (sfLineIndex !== -1) {
+      if (isCleanSf) {
+        lines[sfLineIndex] = `@SF2 ${updates.soundfont!.trim()}`;
+      } else {
+        lines.splice(sfLineIndex, 1);
+      }
+    } else if (isCleanSf) {
+      const insertPos =
+        programLineIndex !== -1
+          ? programLineIndex + 1
+          : channelLineIndex !== -1
+          ? channelLineIndex + 1
+          : trackHeaderIndex + 1;
+      lines.splice(insertPos, 0, `@SF2 ${updates.soundfont!.trim()}`);
+    }
+  }
+
   return lines.join('\n');
+}
+
+/**
+ * Surgically replaces or appends a single track in an LMP document without disturbing other tracks.
+ */
+export function replaceTrackInDocument(fullCode: string, trackId: number, newTrackLmp: string): string {
+  const lines = fullCode.split('\n');
+  const trackRange = findTrackRange(lines, trackId);
+
+  // If newTrackLmp contains multiple tracks or a full song regurgitation,
+  // extract specifically the requested trackId if present
+  const newLines = newTrackLmp.split('\n');
+  const newTrackRange = findTrackRange(newLines, trackId);
+
+  let trimmedNewContent = '';
+  if (newTrackRange.start !== -1) {
+    trimmedNewContent = newLines.slice(newTrackRange.start, newTrackRange.end).join('\n').trim();
+  } else {
+    // Clean newTrackLmp to strip redundant global headers (@LMP, @BPM, @TIMESIG, etc.)
+    const cleanTrackLines = newTrackLmp
+      .split('\n')
+      .filter((l) => !l.trim().match(/^@(LMP|BPM|TIMESIG|PPQN|ORIGIN|SEED)\b/i));
+    trimmedNewContent = cleanTrackLines.join('\n').trim();
+  }
+
+  if (trackRange.start !== -1) {
+    // Replace existing track block
+    lines.splice(trackRange.start, trackRange.end - trackRange.start, trimmedNewContent);
+    return lines.join('\n');
+  } else {
+    // Append new track at the end with clean double line break
+    return `${fullCode.trim()}\n\n${trimmedNewContent}\n`;
+  }
 }

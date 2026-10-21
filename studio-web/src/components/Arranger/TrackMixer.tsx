@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Plus,
   Volume2,
@@ -9,12 +9,14 @@ import {
   Upload,
   Check,
   X,
+  Disc,
 } from 'lucide-react';
 import type { StudioTrack } from '../../core/types';
 import {
   type DrumMapEntry,
   parseDrumMapText,
 } from '../../core/sourceMapBridge';
+import { soundFontEngine, FLUID_INDIAN_PERCUSSION_MAP_TEXT } from '../../core/soundfontEngine';
 
 interface Props {
   tracks: StudioTrack[];
@@ -29,6 +31,30 @@ interface Props {
 }
 
 export const DRUM_MAP_PRESETS = [
+  {
+    name: '⚡ Fluid Indian Percussion (Tabla Map - SF2)',
+    content: FLUID_INDIAN_PERCUSSION_MAP_TEXT,
+  },
+  {
+    name: '🥁 Dholak Studio Map (Folk & Qawwali - SF2)',
+    content: `@MAP Dhum=36\n@MAP ClsGe=37\n@MAP Ka=38\n@MAP Meend=39\n@MAP FngKe=40\n@MAP LdGe=43\n@MAP Ta=48\n@MAP Tin=50\n@MAP Chhit=52\n@MAP Re=54\n@MAP Thap=57\n@MAP Kre=58\n@MAP Dha=60\n@MAP Dhin=62\n@MAP Tirkita=64\n@MAP TaDhin=65`,
+  },
+  {
+    name: '🪘 Khol Suite Map (Bengal Kirtan - SF2)',
+    content: `@MAP Ghet=36\n@MAP ClsGhet=37\n@MAP Ke=38\n@MAP SldGhet=39\n@MAP Prsd1=41\n@MAP Prsd2=42\n@MAP Prsd3=43\n@MAP Ta=48\n@MAP SftTa=49\n@MAP Tini=50\n@MAP Jhi=52\n@MAP Krena=58\n@MAP Dha=60\n@MAP Dhe=61\n@MAP Dhin=62`,
+  },
+  {
+    name: '🥁 Mridangam Suite Map (Carnatic King - SF2)',
+    content: `@MAP Dheem=36\n@MAP ClsThoppi=37\n@MAP Ka=38\n@MAP Gumki=39\n@MAP LdThoppi=43\n@MAP Nam=48\n@MAP Kin=48\n@MAP Chapu=50\n@MAP Araichapu=51\n@MAP Tha=52\n@MAP Tarikita=58\n@MAP Dhom=60\n@MAP Dhin=62\n@MAP Klam=64`,
+  },
+  {
+    name: '🪘 Pakhawaj Suite Map (Ancient Dhrupad - SF2)',
+    content: `@MAP Dhumma=36\n@MAP ClsDhum=37\n@MAP Kat=38\n@MAP SldDhum=39\n@MAP OpnKe=40\n@MAP SftKe=42\n@MAP Ta=48\n@MAP Din=50\n@MAP Sur=50\n@MAP Tit=52\n@MAP Chhapa=57\n@MAP DhetDhet=58\n@MAP Dha=60\n@MAP Dhin=62\n@MAP KatDha=63`,
+  },
+  {
+    name: '🔔 Indian Folk & Auxiliary Map (SF2)',
+    content: `@MAP Manjeera=69\n@MAP ManjeeraOpen=70\n@MAP Chimta=71\n@MAP Ghunghroo=74\n@MAP GhunghrooRoll=75\n@MAP Khartaal=76\n@MAP KhartaalTrill=77\n@MAP NagaraBass=78\n@MAP NagaraTreble=79\n@MAP Duff=60\n@MAP Tavil=64`,
+  },
   {
     name: 'General MIDI Standard Kit (Ch 10)',
     content: `@MAP kick=36\n@MAP side_stick=37\n@MAP snare=38\n@MAP clap=39\n@MAP snare_elec=40\n@MAP low_floor_tom=41\n@MAP closed_hh=42\n@MAP high_floor_tom=43\n@MAP pedal_hh=44\n@MAP low_tom=45\n@MAP open_hh=46\n@MAP mid_tom=47\n@MAP high_tom=48\n@MAP crash_1=49\n@MAP ride_1=51\n@MAP china=52\n@MAP ride_bell=53\n@MAP tambourine=54\n@MAP splash=55\n@MAP cowbell=56\n@MAP crash_2=57`,
@@ -48,24 +74,32 @@ export const DRUM_MAP_PRESETS = [
 ];
 
 export const INSTRUMENT_PRESETS = [
-  { name: 'Acoustic Grand Piano', program: 0, channel: 1 },
-  { name: 'Bright Acoustic Piano', program: 1, channel: 1 },
-  { name: 'Electric Rhodes', program: 4, channel: 2 },
-  { name: 'Harpsichord', program: 6, channel: 2 },
-  { name: 'Drawbar Organ', program: 16, channel: 3 },
-  { name: 'Acoustic Guitar', program: 24, channel: 3 },
-  { name: 'Electric Clean Guitar', program: 27, channel: 3 },
-  { name: 'Slap Bass', program: 36, channel: 4 },
-  { name: 'Synth Bass', program: 38, channel: 4 },
-  { name: 'Strings Pad', program: 48, channel: 5 },
-  { name: 'Synth Strings', program: 50, channel: 5 },
-  { name: 'Trumpet', program: 56, channel: 6 },
-  { name: 'Brass Section', program: 61, channel: 6 },
-  { name: 'Soprano Sax', program: 64, channel: 7 },
-  { name: 'Flute', program: 73, channel: 7 },
-  { name: 'Lead Synth', program: 80, channel: 8 },
-  { name: 'Warm Pad', program: 89, channel: 9 },
-  { name: 'Channel 10 Drums', program: 0, channel: 10 },
+  { name: 'Acoustic Grand Piano', program: 0, channel: 1, soundfont: 'default-gm' },
+  { name: 'Bright Acoustic Piano', program: 1, channel: 1, soundfont: 'default-gm' },
+  { name: 'Electric Rhodes', program: 4, channel: 2, soundfont: 'default-gm' },
+  { name: 'Harpsichord', program: 6, channel: 2, soundfont: 'default-gm' },
+  { name: 'Drawbar Organ', program: 16, channel: 3, soundfont: 'default-gm' },
+  { name: 'Acoustic Guitar', program: 24, channel: 3, soundfont: 'default-gm' },
+  { name: 'Electric Clean Guitar', program: 27, channel: 3, soundfont: 'default-gm' },
+  { name: 'Slap Bass', program: 36, channel: 4, soundfont: 'default-gm' },
+  { name: 'Synth Bass', program: 38, channel: 4, soundfont: 'default-gm' },
+  { name: 'Strings Pad', program: 48, channel: 5, soundfont: 'default-gm' },
+  { name: 'Synth Strings', program: 50, channel: 5, soundfont: 'default-gm' },
+  { name: 'Trumpet', program: 56, channel: 6, soundfont: 'default-gm' },
+  { name: 'Brass Section', program: 61, channel: 6, soundfont: 'default-gm' },
+  { name: 'Soprano Sax', program: 64, channel: 7, soundfont: 'default-gm' },
+  { name: 'Flute', program: 73, channel: 7, soundfont: 'default-gm' },
+  { name: 'Lead Synth', program: 80, channel: 8, soundfont: 'default-gm' },
+  { name: 'Warm Pad', program: 89, channel: 9, soundfont: 'default-gm' },
+  { name: 'Channel 10 Drums (GM)', program: 0, channel: 10, soundfont: 'default-gm' },
+  { name: 'Fluid Indian Percussion (Tabla SF2)', program: 116, channel: 10, soundfont: 'Fluid_Indian_Percussion' },
+  { name: 'Fluid Dholak Studio (SF2)', program: 117, channel: 10, soundfont: 'Fluid_Folk_Percussion' },
+  { name: 'Fluid Khol Suite (SF2)', program: 118, channel: 10, soundfont: 'Fluid_Folk_Percussion' },
+  { name: 'Fluid Mridangam Suite (SF2)', program: 120, channel: 10, soundfont: 'Fluid_Carnatic_Percussion' },
+  { name: 'Fluid Pakhawaj Suite (SF2)', program: 119, channel: 10, soundfont: 'Fluid_Carnatic_Percussion' },
+  { name: 'Fluid Kanjeera Suite (SF2)', program: 121, channel: 10, soundfont: 'Fluid_Carnatic_Percussion' },
+  { name: 'Fluid Ghatam Suite (SF2)', program: 122, channel: 10, soundfont: 'Fluid_Carnatic_Percussion' },
+  { name: 'Fluid Folk & Auxiliary (SF2)', program: 123, channel: 10, soundfont: 'Fluid_Folk_Percussion' },
 ];
 
 export function TrackMixer({
@@ -82,7 +116,50 @@ export function TrackMixer({
   const [showAddModal, setShowAddModal] = useState(false);
   const [drumMapTrack, setDrumMapTrack] = useState<StudioTrack | null>(null);
   const [drumMapText, setDrumMapText] = useState<string>('');
+  const [activeSourceId, setActiveSourceId] = useState<string>(soundFontEngine.getActiveSourceId());
+  const [hasLocalFluid, setHasLocalFluid] = useState<boolean>(soundFontEngine.hasLocalFluidPercussion());
+  const [storedSoundfonts, setStoredSoundfonts] = useState(soundFontEngine.getStoredSoundfonts());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sfInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Initialize soundfont engine (checks local fluid percussion & stored soundfonts)
+    soundFontEngine.init().then(() => {
+      setActiveSourceId(soundFontEngine.getActiveSourceId());
+      setHasLocalFluid(soundFontEngine.hasLocalFluidPercussion());
+      setStoredSoundfonts(soundFontEngine.getStoredSoundfonts());
+    });
+
+    const unsub = soundFontEngine.subscribe(() => {
+      setActiveSourceId(soundFontEngine.getActiveSourceId());
+      setHasLocalFluid(soundFontEngine.hasLocalFluidPercussion());
+      setStoredSoundfonts(soundFontEngine.getStoredSoundfonts());
+    });
+    return unsub;
+  }, []);
+
+  const handleSourceChange = async (val: string) => {
+    if (val === '__load_new__') {
+      sfInputRef.current?.click();
+      return;
+    }
+    await soundFontEngine.selectSource(val);
+  };
+
+  const handleSfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await soundFontEngine.loadAndStoreCustomFile(file);
+    // Reset file input so same file can be re-selected if desired
+    if (e.target) e.target.value = '';
+  };
+
+  const handleDeleteCustomSoundFont = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Remove this stored SoundFont from your browser storage?')) {
+      await soundFontEngine.deleteStoredSoundFont(id);
+    }
+  };
 
   const handleOpenDrumMap = (trk: StudioTrack) => {
     setDrumMapTrack(trk);
@@ -149,6 +226,74 @@ export function TrackMixer({
           <Plus size={12} />
           <span>Track</span>
         </button>
+      </div>
+
+      {/* SoundFont / Audio Engine Selector Bar */}
+      <div className="px-3 py-2 bg-[#0b0f17] border-b border-[#1e2738] flex flex-col gap-1.5 text-xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <Disc
+              size={12}
+              className={activeSourceId !== 'default-gm' ? 'text-emerald-400 animate-pulse' : 'text-slate-500'}
+            />
+            <span>SoundFont (.sf2)</span>
+          </div>
+          {activeSourceId.startsWith('sf_') && (
+            <button
+              type="button"
+              onClick={(e) => handleDeleteCustomSoundFont(activeSourceId, e)}
+              className="text-[10px] text-slate-500 hover:text-red-400 font-mono transition-colors"
+              title="Delete this stored custom .sf2"
+            >
+              Delete .sf2
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <select
+            value={activeSourceId}
+            onChange={(e) => handleSourceChange(e.target.value)}
+            className="flex-1 bg-[#131926] border border-[#222c3f] rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-amber-400 font-medium truncate cursor-pointer"
+          >
+            {/* Always available Default GM */}
+            <option value="default-gm">🎹 General MIDI Synth (Default)</option>
+
+            {/* Only available on user's PC */}
+            {hasLocalFluid && (
+              <option value="fluid-indian">🥁 Fluid Indian Percussion (.sf2)</option>
+            )}
+
+            {/* Previously stored custom soundfonts from IndexedDB */}
+            {storedSoundfonts.length > 0 && (
+              <optgroup label="Saved SoundFonts">
+                {storedSoundfonts.map((sf) => (
+                  <option key={sf.id} value={sf.id}>
+                    📦 {sf.name} ({(sf.sizeBytes / (1024 * 1024)).toFixed(1)} MB)
+                  </option>
+                ))}
+              </optgroup>
+            )}
+
+            {/* Action to load new .sf2 */}
+            <option value="__load_new__">➕ Load custom .sf2 file...</option>
+          </select>
+
+          <input
+            ref={sfInputRef}
+            type="file"
+            accept=".sf2"
+            onChange={handleSfUpload}
+            className="hidden"
+          />
+        </div>
+
+        {activeSourceId === 'fluid-indian' && (
+          <div className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Fluid Indian Percussion (PC Local) Active</span>
+          </div>
+        )}
       </div>
 
       {/* Tracks List */}
@@ -235,28 +380,54 @@ export function TrackMixer({
               <div className="flex items-center justify-between gap-2 text-xs">
                 {/* Instrument Dropdown */}
                 <select
-                  value={track.channel === 10 ? 'drums' : track.program}
+                  value={
+                    track.soundfont && /fluid/i.test(String(track.soundfont))
+                      ? `sf_${track.program}`
+                      : track.channel === 10
+                      ? 'drums'
+                      : track.program
+                  }
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === 'drums') {
+                    if (val === 'sf_116') {
+                      onTrackUpdate(track.id, {
+                        channel: 10,
+                        program: 116,
+                        soundfont: 'Fluid_Indian_Percussion',
+                        name: 'Tabla_Percussion',
+                      });
+                    } else if (val === 'sf_117') {
+                      onTrackUpdate(track.id, {
+                        channel: 10,
+                        program: 117,
+                        soundfont: 'Fluid_Indian_Percussion',
+                        name: 'Dholak_Studio',
+                      });
+                    } else if (val === 'drums') {
                       const newName =
                         track.name.toLowerCase().startsWith('track') ||
                         track.name === 'Rhodes_Chords' ||
                         track.name === 'Slap_Bass'
                           ? 'Drums'
                           : track.name;
-                      onTrackUpdate(track.id, { channel: 10, program: 0, name: newName });
+                      onTrackUpdate(track.id, {
+                        channel: 10,
+                        program: 0,
+                        soundfont: null,
+                        name: newName,
+                      });
                     } else {
                       const prg = Number(val);
                       const preset = INSTRUMENT_PRESETS.find((p) => p.program === prg && p.channel !== 10);
                       const targetChannel = track.channel === 10 ? 1 : track.channel;
                       const newName =
-                        preset && (track.name.toLowerCase().startsWith('track') || track.name === 'Drums')
+                        preset && (track.name.toLowerCase().startsWith('track') || track.name === 'Drums' || track.name.includes('Tabla'))
                           ? preset.name.replace(/\s+/g, '_')
                           : track.name;
                       onTrackUpdate(track.id, {
                         program: prg,
                         channel: targetChannel,
+                        soundfont: null,
                         name: newName,
                       });
                     }
@@ -264,7 +435,16 @@ export function TrackMixer({
                   className="bg-[#0b0e14] border border-[#222c3f] rounded px-1.5 py-1 text-[11px] text-slate-300 max-w-[125px] truncate focus:outline-none focus:border-amber-500"
                 >
                   {INSTRUMENT_PRESETS.map((inst, idx) => (
-                    <option key={idx} value={inst.channel === 10 ? 'drums' : inst.program}>
+                    <option
+                      key={idx}
+                      value={
+                        inst.soundfont === 'Fluid_Indian_Percussion'
+                          ? `sf_${inst.program}`
+                          : inst.channel === 10
+                          ? 'drums'
+                          : inst.program
+                      }
+                    >
                       {inst.name}
                     </option>
                   ))}

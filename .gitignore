@@ -48,3 +48,9 @@ coverage/
 # ============ Audio & Backups ============
 *.wav
 **/bkp files/
+
+# ============ Local-only SoundFonts & Private Submodules ============
+studio-web/public/soundfonts/
+studio-web/public/fluid-soundfonts/
+soundfonts/
+fluid-soundfonts/

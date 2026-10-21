@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import type { StudioNote, StudioTrack, ToolMode, SnapResolution } from '../../core/types';
 import { midiToSpn } from '../../core/sourceMapBridge';
 import { studioAudioEngine } from '../../core/audioEngine';
+import { FLUID_INDIAN_PERCUSSION_MAP } from '../../core/soundfontEngine';
 import { VelocityLane } from './VelocityLane';
 
 interface Props {
@@ -361,18 +362,46 @@ export function PianoRoll({
               const isC = midi % 12 === 0;
               const spn = midiToSpn(midi);
 
+              // Check if key has custom drum map label
+              const isPerc =
+                activeTrack?.channel === 10 ||
+                /tabla|indian|percussion|dholak/i.test(activeTrack?.name || '') ||
+                activeTrack?.program === 116 ||
+                activeTrack?.program === 117;
+              const percussionEntry = isPerc
+                ? FLUID_INDIAN_PERCUSSION_MAP.find((m) => m.midi === midi)
+                : null;
+              const label = percussionEntry ? percussionEntry.name : isC ? spn : isBlackKey ? '' : spn;
+
               return (
                 <button
                   key={midi}
                   type="button"
-                  onMouseDown={() => studioAudioEngine.playSingleNote(midi, 90)}
+                  onMouseDown={() =>
+                    studioAudioEngine.playSingleNote(
+                      midi,
+                      90,
+                      activeTrack?.channel,
+                      activeTrack?.program,
+                      activeTrack?.id
+                    )
+                  }
                   className={`h-[18px] text-[9px] font-mono flex items-center justify-end pr-1.5 transition-colors border-b border-[#182133] ${
-                    isBlackKey
+                    percussionEntry
+                      ? 'bg-[#1a2333] text-amber-300 font-semibold hover:bg-[#25334a]'
+                      : isBlackKey
                       ? 'bg-[#151c2a] text-slate-400 hover:bg-[#202b40]'
                       : 'bg-[#222c3f] text-slate-200 font-semibold hover:bg-[#2d3a54]'
                   }`}
+                  title={percussionEntry ? `${percussionEntry.name} (MIDI ${midi})` : spn}
                 >
-                  {isC ? <span className="text-amber-400 font-bold">{spn}</span> : (isBlackKey ? '' : spn)}
+                  {percussionEntry ? (
+                    <span className="text-amber-300 font-bold truncate">{label}</span>
+                  ) : isC ? (
+                    <span className="text-amber-400 font-bold">{spn}</span>
+                  ) : (
+                    label
+                  )}
                 </button>
               );
             })}

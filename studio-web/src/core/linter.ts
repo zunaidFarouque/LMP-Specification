@@ -1,5 +1,5 @@
 import { compile } from 'lmp-core';
-import { spnToMidi } from './sourceMapBridge';
+import { spnToMidi, STANDARD_TABLA_BOLS, STANDARD_GM_DRUM_NAMES } from './sourceMapBridge';
 
 export interface LmpDiagnostic {
   from: number; // 0-based char offset
@@ -28,6 +28,8 @@ const KNOWN_DIRECTIVES = new Set([
   '@DEFAULT_VEL',
   '@DEFAULT_DUR',
   '@DRUM',
+  '@SF2',
+  '@SOUNDFONT',
 ]);
 
 const RESERVED_EVENT_TYPES = new Set(['R', 'CC', 'PB', 'TEMPO', 'TS']);
@@ -35,7 +37,15 @@ const SPN_REGEX = /^[A-Ga-g][#b♭♯]?-?\d+$/;
 
 function isValidSinglePitch(p: string, customMapNames?: Set<string>): boolean {
   if (!p) return false;
-  if (customMapNames && customMapNames.has(p.toLowerCase())) return true;
+  const lower = p.toLowerCase();
+  if (customMapNames && customMapNames.has(lower)) return true;
+  if (STANDARD_TABLA_BOLS[lower] !== undefined) return true;
+  if (
+    STANDARD_GM_DRUM_NAMES[lower] !== undefined ||
+    STANDARD_GM_DRUM_NAMES[lower.replace(/[-_]/g, '')] !== undefined
+  ) {
+    return true;
+  }
   // MIDI number 0-127
   if (/^\d+$/.test(p)) {
     const num = parseInt(p, 10);

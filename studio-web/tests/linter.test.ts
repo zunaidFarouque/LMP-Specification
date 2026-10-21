@@ -228,4 +228,22 @@ describe('LMP Linter and Syntax Checker', () => {
     expect(diagnostics[0].message).toContain('@MAP');
     expect(diagnostics[1].message).toContain('MIDI number');
   });
+
+  test('accepts standard tabla bols and GM drum aliases without requiring explicit @MAP', () => {
+    const code = `@TRACK 1 Tabla
+@CHANNEL 10
+@SF2 Fluid_Indian_Percussion
+1.0   Dha    110   0.5
+2.0   Ge     95    0.5
+3.0   Na     100   0.5
+4.0   Tin    85    0.5
+
+@TRACK 2 Western_Drums
+@CHANNEL 10
+1.0   kick   110   0.5
+2.0   snare  100   0.5
+2.5   closed_hh  80  0.25`;
+    const diagnostics = lintLmpDocument(code);
+    expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(0);
+  });
 });

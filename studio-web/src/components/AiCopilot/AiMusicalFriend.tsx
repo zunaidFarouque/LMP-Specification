@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useEffect, useId, useMemo } from 'react';
 import {
   Sparkles,
   X,
@@ -11,6 +11,9 @@ import {
   ExternalLink,
   Wand2,
   FilePlus,
+  BookOpen,
+  Eye,
+  Settings2,
 } from 'lucide-react';
 import { STYLE_PRESETS, type StylePreset } from '../../core/aiPresets';
 import {
@@ -19,8 +22,10 @@ import {
   generateVariations,
   type AiSettings,
 } from '../../core/aiService';
-import { parseLmpDocument } from '../../core/sourceMapBridge';
-import type { StudioNote } from '../../core/types';
+import { parseLmpDocument, replaceTrackInDocument } from '../../core/sourceMapBridge';
+import { soundFontSpecManager, type SpecDocument } from '../../core/soundfontSpecManager';
+import { SoundFontManagerModal } from '../SoundFontManager/SoundFontManagerModal';
+import type { StudioNote, StudioTrack } from '../../core/types';
 
 export interface GeneratedVariationItem {
   id: string;
@@ -34,6 +39,8 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   currentLmp: string;
+  tracks?: StudioTrack[];
+  activeTrackId?: number;
   onApplyVariation: (lmpCode: string) => void;
   onAuditionContext: (notes: StudioNote[]) => void;
   onAuditionSolo: (notes: StudioNote[]) => void;
@@ -44,6 +51,8 @@ export function AiMusicalFriend({
   isOpen,
   onClose,
   currentLmp,
+  tracks = [],
+  activeTrackId,
   onApplyVariation,
   onAuditionContext,
   onAuditionSolo,
@@ -58,6 +67,13 @@ export function AiMusicalFriend({
   const [bpm, setBpm] = useState<number>(120);
   const [bars, setBars] = useState<number>(4);
   const [keyScale, setKeyScale] = useState<string>('C Major');
+  const [targetTrackId, setTargetTrackId] = useState<string>('all');
+  const [targetKit, setTargetKit] = useState<'auto' | 'gm' | 'indian_percussion' | 'trap808'>('auto');
+  const [selectedSpecId, setSelectedSpecId] = useState<string>('auto');
+  const [availableSpecs, setAvailableSpecs] = useState<SpecDocument[]>([]);
+  const [isSpecManagerOpen, setIsSpecManagerOpen] = useState(false);
+  const [specManagerInitialTab, setSpecManagerInitialTab] = useState<'soundfonts' | 'bindings' | 'specs'>('specs');
+  const [specManagerSelectedSpecId, setSpecManagerSelectedSpecId] = useState<string | null>(null);
   const [prompt, setPrompt] = useState<string>('');
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -65,9 +81,49 @@ export function AiMusicalFriend({
   const [variations, setVariations] = useState<GeneratedVariationItem[]>([]);
   const [activeAuditionId, setActiveAuditionId] = useState<string | null>(null);
 
+  useEffect(() => {
+    setAvailableSpecs(soundFontSpecManager.getSpecs());
+    const unsub = soundFontSpecManager.subscribe(() => {
+      setAvailableSpecs(soundFontSpecManager.getSpecs());
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && activeTrackId !== undefined && activeTrackId !== null) {
+      handleTargetTrackChange(String(activeTrackId));
+    }
+  }, [isOpen, activeTrackId]);
+
+  const effectiveSpecMatch = useMemo(() => {
+    const targetTrk =
+      targetTrackId !== 'all' && targetTrackId !== 'new'
+        ? tracks.find((t) => t.id === Number(targetTrackId))
+        : null;
+    return soundFontSpecManager.matchSpecForTrack(targetTrk, selectedSpecId);
+  }, [targetTrackId, tracks, selectedSpecId]);
+
   const geminiKeyId = useId();
   const geminiModelId = useId();
   const openAiKeyId = useId();
+
+  const handleTargetTrackChange = (tidStr: string) => {
+    setTargetTrackId(tidStr);
+    if (tidStr === 'new') {
+      setMode('edit');
+    }
+    if (tidStr !== 'all' && tidStr !== 'new') {
+      const tid = Number(tidStr);
+      const trk = tracks.find((t) => t.id === tid);
+      if (trk) {
+        if (trk.soundfont?.includes('Fluid') || /tabla|indian|percussion/i.test(trk.name)) {
+          setTargetKit('indian_percussion');
+        } else if (trk.channel === 10 || /drum/i.test(trk.name)) {
+          setTargetKit('gm');
+        }
+      }
+    }
+  };
 
   const handleSelectPreset = (p: StylePreset) => {
     setSelectedPresetId(p.id);
@@ -75,6 +131,20 @@ export function AiMusicalFriend({
     setBars(p.bars);
     setKeyScale(p.keyScale);
     setPrompt(p.prompt);
+  };
+
+  const handleApplyVariation = (v: GeneratedVariationItem) => {
+    if (targetTrackId !== 'all' && targetTrackId !== 'new') {
+      const tid = Number(targetTrackId);
+      const merged = replaceTrackInDocument(currentLmp, tid, v.lmpCode);
+      onApplyVariation(merged);
+    } else if (targetTrackId === 'new') {
+      const nextId = (tracks?.length || 0) + 1;
+      const merged = replaceTrackInDocument(currentLmp, nextId, v.lmpCode);
+      onApplyVariation(merged);
+    } else {
+      onApplyVariation(v.lmpCode);
+    }
   };
 
   const handleSaveSettings = (st: AiSettings) => {
@@ -106,6 +176,11 @@ export function AiMusicalFriend({
           ? activePreset.prompt
           : 'Compose a complete, loopable multi-track musical piece with rich groove and melodies.');
 
+      const targetTrackObj =
+        targetTrackId !== 'all' && targetTrackId !== 'new'
+          ? tracks.find((t) => t.id === Number(targetTrackId))
+          : undefined;
+
       const results = await generateVariations({
         prompt: effectivePrompt,
         variationCount,
@@ -115,6 +190,12 @@ export function AiMusicalFriend({
         bpm,
         bars,
         keyScale,
+        targetKit,
+        targetTrackId:
+          targetTrackId === 'all' || targetTrackId === 'new' ? targetTrackId : Number(targetTrackId),
+        targetTrack: targetTrackObj,
+        selectedSpecId,
+        trackName: targetTrackObj?.name,
       });
 
       const parsedItems: GeneratedVariationItem[] = results.map((res, idx) => {
@@ -380,6 +461,109 @@ export function AiMusicalFriend({
             </div>
           </div>
 
+          {/* Target Track Selection */}
+          <div className="p-3 bg-[#131926] border border-[#222c3f] rounded-xl flex flex-col gap-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] uppercase font-bold text-slate-400">
+                Target Track:
+              </label>
+              {targetTrackId !== 'all' && targetTrackId !== 'new' && (
+                <span className="text-[10px] text-amber-400 font-mono">Single-Track Infill</span>
+              )}
+            </div>
+            <select
+              value={targetTrackId}
+              onChange={(e) => handleTargetTrackChange(e.target.value)}
+              className="w-full bg-[#0a0d14] border border-[#222c3f] rounded px-2 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-amber-400"
+            >
+              <option value="all">🎵 Entire Song (All Tracks)</option>
+              {tracks.map((trk) => (
+                <option key={trk.id} value={String(trk.id)}>
+                  Track {trk.id}: {trk.name} ({trk.soundfont ? `SF2: ${trk.soundfont}` : trk.channel === 10 ? 'Ch 10 Drums' : `Patch ${trk.program}`})
+                </option>
+              ))}
+              <option value="new">➕ Add as New Track</option>
+            </select>
+          </div>
+
+          {/* AI Specification & Instrument Guide (Context Optimization) */}
+          <div className="p-3 bg-[#131926] border border-[#222c3f] rounded-xl flex flex-col gap-2 text-xs">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1.5">
+                <BookOpen size={13} className="text-amber-400" />
+                Attached Instrument Specification:
+              </label>
+              {effectiveSpecMatch.spec ? (
+                <span className="text-[10px] text-amber-300 font-mono flex items-center gap-1 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/30">
+                  {effectiveSpecMatch.isOverridden ? 'Manual Override' : 'Auto-Matched'}
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-400 font-mono">None (Core LMP only)</span>
+              )}
+            </div>
+
+            {/* Current Attached Doc Info Card */}
+            {effectiveSpecMatch.spec ? (
+              <div className="p-2.5 bg-[#0a0d14] border border-[#222c3f] rounded-lg flex items-center justify-between">
+                <div className="min-w-0 pr-2">
+                  <div className="text-xs font-bold text-slate-200 truncate flex items-center gap-1.5">
+                    📄 {effectiveSpecMatch.spec.title}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono truncate">
+                    {effectiveSpecMatch.spec.fileName} • {effectiveSpecMatch.reason}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSpecManagerInitialTab('specs');
+                    setSpecManagerSelectedSpecId(effectiveSpecMatch.spec?.id || null);
+                    setIsSpecManagerOpen(true);
+                  }}
+                  className="px-2.5 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-medium flex items-center gap-1 border border-slate-700 shrink-0 transition-colors"
+                >
+                  <Eye size={12} />
+                  View Spec
+                </button>
+              </div>
+            ) : (
+              <div className="p-2 bg-[#0a0d14] border border-[#222c3f] rounded-lg text-[11px] text-slate-400">
+                {effectiveSpecMatch.reason}
+              </div>
+            )}
+
+            {/* Spec Selector Dropdown */}
+            <div className="flex items-center gap-2 pt-1">
+              <select
+                value={selectedSpecId}
+                onChange={(e) => setSelectedSpecId(e.target.value)}
+                className="flex-1 bg-[#0a0d14] border border-[#222c3f] rounded px-2 py-1.5 text-xs text-slate-200 font-medium focus:outline-none focus:border-amber-400"
+              >
+                <option value="auto">⚡ Auto (Match based on track soundfont/name/program)</option>
+                <option value="none">🚫 None (Core LMP only, saves prompt tokens)</option>
+                <optgroup label="Available Instrument Specifications">
+                  {availableSpecs.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.title} ({s.fileName})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSpecManagerInitialTab('bindings');
+                  setIsSpecManagerOpen(true);
+                }}
+                className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
+                title="Open SoundFont & Spec Manager"
+              >
+                <Settings2 size={14} />
+              </button>
+            </div>
+          </div>
+
           {/* User Prompt */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">
@@ -460,11 +644,11 @@ export function AiMusicalFriend({
                     {/* Apply to Code */}
                     <button
                       type="button"
-                      onClick={() => onApplyVariation(v.lmpCode)}
+                      onClick={() => handleApplyVariation(v)}
                       className="flex items-center justify-center gap-1 py-1.5 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors shadow-sm"
                     >
                       <Check size={13} />
-                      <span>Apply</span>
+                      <span>{targetTrackId !== 'all' ? 'Apply to Track' : 'Apply Song'}</span>
                     </button>
                   </div>
                 </div>
@@ -473,6 +657,13 @@ export function AiMusicalFriend({
           )}
         </div>
       </div>
+
+      <SoundFontManagerModal
+        isOpen={isSpecManagerOpen}
+        onClose={() => setIsSpecManagerOpen(false)}
+        initialTab={specManagerInitialTab}
+        selectedSpecIdForView={specManagerSelectedSpecId}
+      />
     </div>
   );
 }

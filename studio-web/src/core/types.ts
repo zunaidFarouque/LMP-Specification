@@ -28,6 +28,7 @@ export interface StudioTrack {
   isSolo: boolean;
   color: string;
   notes: StudioNote[];
+  soundfont?: string | null;
 }
 
 export interface TransportState {

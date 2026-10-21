@@ -11,6 +11,7 @@ import {
   parseDrumMapText,
   extractTrackDrumMaps,
   patchTrackDrumMap,
+  replaceTrackInDocument,
 } from '../src/core/sourceMapBridge';
 import type { StudioNote } from '../src/core/types';
 
@@ -607,6 +608,22 @@ describe('sourceMapBridge', () => {
       expect(updated).toContain('@CHANNEL 10');
       expect(updated).toContain('@PROGRAM 0');
     });
+
+    test('inserts and updates @SF2 soundfont in track header', () => {
+      const code = `@TRACK 3 Percussion
+@CHANNEL 10
+@PROGRAM 116
+1.0 36 90 0.5`;
+      const withSf = patchTrackHeader(code, 3, { soundfont: 'Fluid_Indian_Percussion' });
+      expect(withSf).toContain('@SF2 Fluid_Indian_Percussion');
+
+      const parsed = parseLmpDocument(withSf);
+      expect(parsed.tracks.find((t) => t.id === 3)?.soundfont).toBe('Fluid_Indian_Percussion');
+
+      // Clear soundfont
+      const cleared = patchTrackHeader(withSf, 3, { soundfont: 'default-gm' });
+      expect(cleared).not.toContain('@SF2');
+    });
   });
 
   describe('createNewTrackBlock', () => {
@@ -615,6 +632,151 @@ describe('sourceMapBridge', () => {
       expect(block.startsWith('\n\n@TRACK 3 Synth_Lead\n')).toBe(true);
       expect(block).toContain('@CHANNEL 4\n');
       expect(block).toContain('@PROGRAM 80\n');
+    });
+  });
+
+  describe('replaceTrackInDocument - Multi-Track Coexistence & Targeted Infill', () => {
+    test('replaces an existing track in place while preserving all other tracks (e.g. Drums & Tabla coexisting)', () => {
+      const song = `@LMP 2.0
+@BPM 120
+
+@TRACK 1 Piano
+@CHANNEL 1
+1.0 C4 80 1.0
+
+@TRACK 2 Western_Drums
+@CHANNEL 10
+1.0 36 100 0.5
+2.0 38 100 0.5
+
+@TRACK 3 Indian_Tabla
+@CHANNEL 10
+@SF2 Fluid_Indian_Percussion
+1.0 60 110 0.5
+`;
+
+      const updatedTablaLmp = `@TRACK 3 Indian_Tabla
+@CHANNEL 10
+@SF2 Fluid_Indian_Percussion
+@MAP Dha=60
+@MAP Ge=36
+1.0 Dha 120 0.5 // Sam
+2.0 Ge 95 0.5
+`;
+
+      const result = replaceTrackInDocument(song, 3, updatedTablaLmp);
+
+      // Verify Track 1 and 2 are preserved
+      expect(result).toContain('@TRACK 1 Piano');
+      expect(result).toContain('@TRACK 2 Western_Drums');
+      expect(result).toContain('1.0 36 100 0.5');
+
+      // Verify Track 3 was replaced
+      expect(result).toContain('@MAP Dha=60');
+      expect(result).toContain('1.0 Dha 120 0.5 // Sam');
+
+      // Verify parsing resolves both tracks
+      const doc = parseLmpDocument(result);
+      expect(doc.tracks.length).toBe(3);
+      const tablaTrack = doc.tracks.find((t) => t.id === 3);
+      expect(tablaTrack?.notes.length).toBe(2);
+      expect(tablaTrack?.notes[0].midiNumber).toBe(60); // Dha mapped to 60
+    });
+
+    test('cleanly appends a new track (e.g. adding Track 2 to existing Track 1)', () => {
+      const song = `@LMP 2.0
+@BPM 100
+@TIMESIG 4/4
+
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+1.0 C4,E4,G4 85 2.0
+3.0 F4,A4,C5 85 2.0
+`;
+      const newTrackLmp = `@TRACK 2 Tabla_Groove
+@CHANNEL 10
+@SF2 Fluid_Indian_Percussion
+@MAP Dha=60
+1.0 Dha 120 0.5
+`;
+      const result = replaceTrackInDocument(song, 2, newTrackLmp);
+      expect(result).toContain('@TRACK 1 Piano_Chords');
+      expect(result).toContain('@TRACK 2 Tabla_Groove');
+
+      const parsed = parseLmpDocument(result);
+      expect(parsed.tracks.length).toBe(2);
+      expect(parsed.tracks[0].name).toBe('Piano_Chords');
+      expect(parsed.tracks[1].name).toBe('Tabla_Groove');
+    });
+
+    test('surgically extracts only the new track if AI returns full song regurgitation', () => {
+      const song = `@LMP 2.0
+@BPM 100
+@TIMESIG 4/4
+
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+1.0 C4,E4,G4 85 2.0
+`;
+      // AI regurgitated full document including Track 1 + new Track 2
+      const aiFullOutput = `@LMP 2.0
+@BPM 100
+@TIMESIG 4/4
+
+@TRACK 1 Piano_Chords
+@CHANNEL 1
+1.0 C4,E4,G4 85 2.0
+
+@TRACK 2 Bass_Line
+@CHANNEL 2
+@PROGRAM 33
+1.0 C2 95 1.5
+2.5 G1 90 0.5
+`;
+      const result = replaceTrackInDocument(song, 2, aiFullOutput);
+
+      // Verify Track 1 is NOT duplicated
+      const track1Matches = result.match(/@TRACK 1\b/g) || [];
+      expect(track1Matches.length).toBe(1);
+
+      // Verify Track 2 was appended cleanly
+      expect(result).toContain('@TRACK 2 Bass_Line');
+
+      const parsed = parseLmpDocument(result);
+      expect(parsed.tracks.length).toBe(2);
+      expect(parsed.tracks[1].name).toBe('Bass_Line');
+      expect(parsed.tracks[1].notes.length).toBe(2);
+    });
+
+    test('resolves standard bols and drum names without requiring explicit @MAP in track', () => {
+      const code = `@TRACK 1 Tabla
+@CHANNEL 10
+@SF2 Fluid_Indian_Percussion
+1.0 Dha 115 0.5
+2.0 Ge 95 0.5
+3.0 Na 90 0.5
+4.0 Chimta 100 0.5
+
+@TRACK 2 Drums
+@CHANNEL 10
+1.0 kick 100 0.5
+2.0 snare 100 0.5
+3.0 closed_hh 90 0.25
+`;
+      const doc = parseLmpDocument(code);
+      const tabla = doc.tracks.find((t) => t.id === 1);
+      const drums = doc.tracks.find((t) => t.id === 2);
+
+      // Tabla auto-resolved
+      expect(tabla?.notes.find((n) => n.pitch === 'Dha')?.midiNumber).toBe(60);
+      expect(tabla?.notes.find((n) => n.pitch === 'Ge')?.midiNumber).toBe(36);
+      expect(tabla?.notes.find((n) => n.pitch === 'Na')?.midiNumber).toBe(48);
+      expect(tabla?.notes.find((n) => n.pitch === 'Chimta')?.midiNumber).toBe(71);
+
+      // Drums auto-resolved
+      expect(drums?.notes.find((n) => n.pitch === 'kick')?.midiNumber).toBe(36);
+      expect(drums?.notes.find((n) => n.pitch === 'snare')?.midiNumber).toBe(38);
+      expect(drums?.notes.find((n) => n.pitch === 'closed_hh')?.midiNumber).toBe(42);
     });
   });
 

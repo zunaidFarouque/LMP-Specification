@@ -13,6 +13,7 @@ import {
   Lock,
   Unlock,
   Layers,
+  Music,
 } from 'lucide-react';
 import type { ToolMode, SnapResolution, TransportState } from '../../core/types';
 
@@ -35,6 +36,7 @@ interface Props {
   scrollLock: boolean;
   onToggleScrollLock: () => void;
   onOpenAiFriend: () => void;
+  onOpenSoundFontManager?: () => void;
   onDownloadMidi: () => void;
   canDownload: boolean;
 }
@@ -58,6 +60,7 @@ export function TransportBar({
   scrollLock,
   onToggleScrollLock,
   onOpenAiFriend,
+  onOpenSoundFontManager,
   onDownloadMidi,
   canDownload,
 }: Props) {
@@ -262,6 +265,17 @@ export function TransportBar({
             title={`Master Volume: ${Math.round(transport.masterVolume * 100)}%`}
           />
         </div>
+
+        {/* SoundFonts & Specs Manager Button */}
+        <button
+          type="button"
+          onClick={onOpenSoundFontManager}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold bg-[#141b27] text-slate-300 border-[#222c3f] hover:text-amber-300 hover:border-amber-500/50 hover:bg-[#1b2536] transition-all"
+          title="Manage SoundFonts, program banks, and instrument markdown specifications"
+        >
+          <Music size={13} className="text-amber-400" />
+          <span className="text-[11px] font-mono">SoundFonts & Specs</span>
+        </button>
 
         {/* AI Copilot Button */}
         <button
