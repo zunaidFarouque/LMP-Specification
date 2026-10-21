@@ -8,6 +8,7 @@ import { AiMusicalFriend } from './components/AiCopilot/AiMusicalFriend';
 import { SoundFontManagerModal } from './components/SoundFontManager/SoundFontManagerModal';
 import { DockableWorkspace } from './components/Layout/DockableWorkspace';
 import { studioAudioEngine } from './core/audioEngine';
+import { ErrorBoundary } from './components/Common/ErrorBoundary';
 import {
   parseLmpDocument,
   patchNote,
@@ -18,6 +19,7 @@ import {
   extractTrackDrumMaps,
   patchTrackDrumMap,
   spnToMidi,
+  ensureLmpDocumentScaffold,
 } from './core/sourceMapBridge';
 import type {
   StudioTrack,
@@ -141,6 +143,14 @@ export function App() {
       setHasError(true);
       setCompileStatus(`Compilation Error: ${msg}`);
       setMidiBytes(null);
+
+      // Safe fallback: still parse tracks via structural parser so UI components don't collapse
+      try {
+        const fallback = parseLmpDocument(code);
+        setTracks(fallback.tracks);
+      } catch {
+        // preserve existing tracks
+      }
       return null;
     }
   }, []);
@@ -185,7 +195,16 @@ export function App() {
   // Code editor manual text change
   const handleCodeChange = (newCode: string) => {
     setLmpText(newCode);
-    compileDocument(newCode);
+    const parsed = compileDocument(newCode);
+
+    // If document is cleared or empty, safely reset stale selections & hovers
+    if (!parsed || !newCode.trim() || parsed.tracks.every((t) => t.notes.length === 0)) {
+      setSelectedNote(null);
+      setSelectedLine(null);
+      setHoveredNoteId(null);
+      setHoveredLine(null);
+      setHoveredPitch(null);
+    }
   };
 
   // Note clicked in Piano Roll -> Select note and focus line
@@ -263,7 +282,8 @@ export function App() {
 
   // Visual Note Drawn with Pencil Tool
   const handleNoteCreate = (trackId: number, pitch: string, beat: number, duration: number) => {
-    const updatedCode = insertNote(lmpText, trackId, pitch, beat, duration, 90, { collapseCommons });
+    const baseCode = ensureLmpDocumentScaffold(lmpText, transport.bpm, transport.timeSig);
+    const updatedCode = insertNote(baseCode, trackId, pitch, beat, duration, 90, { collapseCommons });
     setLmpText(updatedCode);
     const parsed = compileDocument(updatedCode);
 
@@ -306,8 +326,9 @@ export function App() {
       studioAudioEngine.updateTrackMixer(trk);
     }
 
-    // Sync code header
-    const updatedCode = patchTrackHeader(lmpText, trackId, {
+    // Sync code header (scaffold if document is empty)
+    const baseCode = ensureLmpDocumentScaffold(lmpText, transport.bpm, transport.timeSig);
+    const updatedCode = patchTrackHeader(baseCode, trackId, {
       name: updates.name,
       channel: updates.channel,
       program: updates.program,
@@ -323,6 +344,13 @@ export function App() {
 
   // Add new track with proper blank line organization
   const handleAddTrack = (template: { name: string; channel: number; program: number }) => {
+    if (!lmpText.trim()) {
+      const initialCode = `@LMP 2.0\n@BPM ${transport.bpm}\n@TIMESIG ${transport.timeSig[0]}/${transport.timeSig[1]}\n\n@TRACK 1 ${template.name.trim().replace(/\s+/g, '_')}\n@CHANNEL ${template.channel}\n@PROGRAM ${template.program}\n`;
+      setLmpText(initialCode);
+      compileDocument(initialCode);
+      setActiveTrackId(1);
+      return;
+    }
     const nextId = Math.max(0, ...tracks.map((t) => t.id)) + 1;
     const newTrackBlock = createNewTrackBlock(nextId, template.name, template.channel, template.program);
     const updatedCode = lmpText.trimEnd() + newTrackBlock;
@@ -371,7 +399,14 @@ export function App() {
         onToggleLoop={() => studioAudioEngine.setLoop(!transport.isLooping)}
         onBpmChange={(bpm) => {
           studioAudioEngine.setBpm(bpm);
-          const updatedCode = lmpText.replace(/@BPM\s+\d+(\.\d+)?/i, `@BPM ${bpm}`);
+          let updatedCode = lmpText;
+          if (/@BPM\s+\d+(\.\d+)?/i.test(updatedCode)) {
+            updatedCode = updatedCode.replace(/@BPM\s+\d+(\.\d+)?/i, `@BPM ${bpm}`);
+          } else if (updatedCode.trim()) {
+            updatedCode = `@BPM ${bpm}\n${updatedCode}`;
+          } else {
+            updatedCode = ensureLmpDocumentScaffold('', bpm, transport.timeSig);
+          }
           setLmpText(updatedCode);
           compileDocument(updatedCode);
         }}
@@ -393,7 +428,8 @@ export function App() {
       />
 
       {/* 2. Dockable DAW Workspace */}
-      <DockableWorkspace
+      <ErrorBoundary fallbackTitle="DAW Workspace Glitch">
+        <DockableWorkspace
         arrangerNode={
           <TrackMixer
             tracks={tracks}
@@ -445,6 +481,7 @@ export function App() {
           />
         }
       />
+      </ErrorBoundary>
 
       {/* 3. AI Musical Friend & Copilot Drawer */}
       <AiMusicalFriend

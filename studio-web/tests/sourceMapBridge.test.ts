@@ -12,6 +12,7 @@ import {
   extractTrackDrumMaps,
   patchTrackDrumMap,
   replaceTrackInDocument,
+  ensureLmpDocumentScaffold,
 } from '../src/core/sourceMapBridge';
 import type { StudioNote } from '../src/core/types';
 
@@ -777,6 +778,22 @@ describe('sourceMapBridge', () => {
       expect(drums?.notes.find((n) => n.pitch === 'kick')?.midiNumber).toBe(36);
       expect(drums?.notes.find((n) => n.pitch === 'snare')?.midiNumber).toBe(38);
       expect(drums?.notes.find((n) => n.pitch === 'closed_hh')?.midiNumber).toBe(42);
+    });
+
+    test('ensureLmpDocumentScaffold generates clean baseline headers for empty canvas', () => {
+      const scaffold = ensureLmpDocumentScaffold('', 128, [3, 4]);
+      expect(scaffold).toContain('@LMP 2.0');
+      expect(scaffold).toContain('@BPM 128');
+      expect(scaffold).toContain('@TIMESIG 3/4');
+      expect(scaffold).toContain('@TRACK 1 Track_1');
+      expect(scaffold).toContain('@CHANNEL 1');
+
+      // Drawing a note on an empty canvas automatically yields valid parsed document
+      const withNote = insertNote(scaffold, 1, 'C4', 1.0, 1.0, 90);
+      const parsed = parseLmpDocument(withNote);
+      expect(parsed.tracks.length).toBe(1);
+      expect(parsed.tracks[0].notes.length).toBe(1);
+      expect(parsed.tracks[0].notes[0].pitch).toBe('C4');
     });
   });
 

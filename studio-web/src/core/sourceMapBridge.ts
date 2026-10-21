@@ -1210,3 +1210,32 @@ export function replaceTrackInDocument(fullCode: string, trackId: number, newTra
     return `${fullCode.trim()}\n\n${trimmedNewContent}\n`;
   }
 }
+
+/**
+ * Ensures an LMP document has the baseline global scaffold (@LMP 2.0, @BPM, @TIMESIG, @TRACK 1).
+ * Used when a user starts from a zero-code blank canvas and creates content exclusively via the GUI.
+ */
+export function ensureLmpDocumentScaffold(
+  code: string,
+  defaultBpm = 120,
+  defaultTimeSig: [number, number] = [4, 4]
+): string {
+  const trimmed = code.trim();
+  if (!trimmed) {
+    return `@LMP 2.0\n@BPM ${defaultBpm}\n@TIMESIG ${defaultTimeSig[0]}/${defaultTimeSig[1]}\n\n@TRACK 1 Track_1\n@CHANNEL 1\n@PROGRAM 0\n`;
+  }
+  let result = code;
+  if (!/@LMP\b/i.test(result)) {
+    result = `@LMP 2.0\n${result}`;
+  }
+  if (!/@BPM\b/i.test(result)) {
+    result = result.replace(/(@LMP[^\n]*\n)/i, `$1@BPM ${defaultBpm}\n`);
+  }
+  if (!/@TIMESIG\b/i.test(result)) {
+    result = result.replace(/(@BPM[^\n]*\n)/i, `$1@TIMESIG ${defaultTimeSig[0]}/${defaultTimeSig[1]}\n`);
+  }
+  if (!/@TRACK\b/i.test(result)) {
+    result = `${result.trimEnd()}\n\n@TRACK 1 Track_1\n@CHANNEL 1\n@PROGRAM 0\n`;
+  }
+  return result;
+}

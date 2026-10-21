@@ -17,6 +17,9 @@ const highlightLineField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(value, tr) {
+    if (tr.docChanged) {
+      return Decoration.none;
+    }
     for (const e of tr.effects) {
       if (e.is(SetHighlightLineEffect)) {
         const lineNum = e.value;
@@ -40,6 +43,9 @@ const hoverLineField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(value, tr) {
+    if (tr.docChanged) {
+      return Decoration.none;
+    }
     for (const e of tr.effects) {
       if (e.is(SetHoverLineEffect)) {
         const lineNum = e.value;
@@ -63,6 +69,9 @@ const hoverTokenField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(value, tr) {
+    if (tr.docChanged) {
+      return Decoration.none;
+    }
     for (const e of tr.effects) {
       if (e.is(SetHoverTokenEffect)) {
         const info = e.value;
